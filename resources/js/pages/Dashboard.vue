@@ -91,7 +91,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import {
     ShoppingBagIcon,
     BanknotesIcon,

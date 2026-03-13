@@ -17,10 +17,13 @@ export default defineConfig({
         tailwindcss(),
     ],
     server: {
-        host: 'armtrip.test',
+        host: 'localhost',
         port: 5173,
+        https: false,
         hmr: {
-            host: 'armtrip.test',
+            host: 'localhost',
+            protocol: 'ws',
+            clientPort: 5173,
         },
         watch: {
             ignored: ['**/storage/framework/views/**'],

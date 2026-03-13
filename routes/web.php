@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,8 +16,23 @@ Route::post('/register', [AuthController::class, 'register'])->name('register.po
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+Route::get('/dashboard', function () {
+    return redirect()->route('admin.dashboard');
+})->name('dashboard');
+
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/', function () {
+        return redirect()->route('admin.dashboard');
+    })->name('index');
+    Route::get('/dashboard', function () {
         return view('admin');
-    });
+    })->name('dashboard');
+    Route::get('/settings', function () {
+        return redirect()->route('admin.settings.organization');
+    })->name('settings');
+    Route::get('/settings/organization', function () {
+        return view('admin');
+    })->name('settings.organization');
+    Route::get('/settings/api/organization', [SettingsController::class, 'organization']);
+    Route::post('/settings/api/organization', [SettingsController::class, 'saveOrganization']);
 });
