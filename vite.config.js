@@ -8,8 +8,8 @@ export default defineConfig({
         laravel({
             input: [
                 'resources/css/app.css',
-                'resources/js/app.js',
-                'resources/js/admin.js',
+                'resources/js/frontend/app.js',
+                'resources/js/admin/admin.js',
             ],
             refresh: true,
         }),
@@ -27,6 +27,12 @@ export default defineConfig({
         },
         watch: {
             ignored: ['**/storage/framework/views/**'],
+        },
+        proxy: {
+            '/admin': {
+                target: 'http://armtrip.test',
+                changeOrigin: true,
+            },
         },
     },
 });

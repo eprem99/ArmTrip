@@ -4,7 +4,8 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "copy:tinymce": "node -e \"const fs=require('fs'); const path=require('path'); const src='node_modules/tinymce'; const dest='public/tinymce'; if(!fs.existsSync(src)) process.exit(1); fs.mkdirSync(dest,{recursive:true}); ['tinymce.min.js','themes','skins','plugins'].forEach(p=>{const s=path.join(src,p); const d=path.join(dest,p); if(fs.existsSync(s)) fs.cpSync(s,d,{recursive:true}); });\""
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
@@ -16,8 +17,10 @@
     },
     "dependencies": {
         "@heroicons/vue": "^2.2.0",
+        "@tinymce/tinymce-vue": "^4.0.7",
         "@vitejs/plugin-vue": "^6.0.5",
         "chart.js": "^4.5.1",
+        "tinymce": "^5.10.9",
         "vue": "^3.5.30",
         "vue-chartjs": "^5.3.3"
     }

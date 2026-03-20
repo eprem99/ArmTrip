@@ -1,0 +1,50 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class Page extends Model
+{
+    protected $fillable = [
+        'parent_id',
+        'slug',
+        'title',
+        'content',
+        'excerpt',
+        'template',
+        'featured_image',
+        'status',
+        'is_home',
+        'sort_order',
+        'created_by',
+        'updated_by',
+    ];
+
+    protected $casts = [
+        'is_home' => 'boolean',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+    ];
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(Page::class, 'parent_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function editor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function isPublished(): bool
+    {
+        return $this->status === 'published';
+    }
+}

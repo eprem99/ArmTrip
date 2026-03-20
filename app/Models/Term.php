@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,12 +14,20 @@ class Term extends Model
 {
     use HasFactory;
 
+    public const STATUS_DRAFT = 'draft';
+
+    public const STATUS_PUBLISHED = 'published';
+
+    /** @var list<string> */
+    public const STATUSES = [self::STATUS_DRAFT, self::STATUS_PUBLISHED];
+
     protected $fillable = [
         'taxonomy_id',
         'name',
         'slug',
         'parent_id',
         'description',
+        'status',
     ];
 
     protected static function booted(): void
@@ -55,5 +64,13 @@ class Term extends Model
     {
         return $this->morphedByMany(Post::class, 'termable');
     }
-}
 
+    /**
+     * @param  Builder<Term>  $query
+     * @return Builder<Term>
+     */
+    public function scopePublished(Builder $query): Builder
+    {
+        return $query->where('status', self::STATUS_PUBLISHED);
+    }
+}

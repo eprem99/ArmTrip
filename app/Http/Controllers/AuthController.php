@@ -34,7 +34,7 @@ class AuthController extends Controller
         }
 
         return back()->withErrors([
-            'email' => 'Неверный email или пароль.',
+            'email' => __('auth.login_error'),
         ])->onlyInput('email');
     }
 
@@ -78,4 +78,3 @@ class AuthController extends Controller
         return redirect('/');
     }
 }
-

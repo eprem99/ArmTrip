@@ -11,8 +11,18 @@ class TaxonomyController extends Controller
 {
     public function showTaxonomy(string $taxonomySlug): View
     {
-        $taxonomy = Taxonomy::with('terms.children')
+        $taxonomy = Taxonomy::query()
             ->where('slug', $taxonomySlug)
+            ->with([
+                'terms' => function ($query) {
+                    $query->published()
+                        ->whereNull('parent_id')
+                        ->with(['children' => function ($q) {
+                            $q->published()->orderBy('name');
+                        }])
+                        ->orderBy('name');
+                },
+            ])
             ->firstOrFail();
 
         return view('front.taxonomy.index', compact('taxonomy'));
@@ -22,9 +32,11 @@ class TaxonomyController extends Controller
     {
         $taxonomy = Taxonomy::where('slug', $taxonomySlug)->firstOrFail();
 
-        $term = Term::with(['posts' => function ($query) {
-            $query->published()->with('terms.taxonomy');
-        }])
+        $term = Term::query()
+            ->published()
+            ->with(['posts' => function ($query) {
+                $query->published()->with('terms.taxonomy');
+            }])
             ->where('taxonomy_id', $taxonomy->id)
             ->where('slug', $termSlug)
             ->firstOrFail();
@@ -34,4 +46,3 @@ class TaxonomyController extends Controller
         return view('front.taxonomy.term', compact('taxonomy', 'term', 'posts'));
     }
 }
-
