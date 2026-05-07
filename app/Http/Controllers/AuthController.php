@@ -30,7 +30,7 @@ class AuthController extends Controller
                 return redirect()->route('admin.dashboard');
             }
 
-            return redirect()->intended('/');
+            return redirect()->intended(route('dashboard'));
         }
 
         return back()->withErrors([
@@ -65,7 +65,7 @@ class AuthController extends Controller
             return redirect()->route('admin.dashboard');
         }
 
-        return redirect()->intended('/');
+        return redirect()->intended(route('dashboard'));
     }
 
     public function logout(Request $request)

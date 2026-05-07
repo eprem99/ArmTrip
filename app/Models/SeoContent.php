@@ -23,4 +23,10 @@ class SeoContent extends Model
     {
         return $this->belongsTo(Taxonomy::class, 'post_id');
     }
+
+    /** When type=term, post_id references terms.id */
+    public function term(): BelongsTo
+    {
+        return $this->belongsTo(Term::class, 'post_id');
+    }
 }

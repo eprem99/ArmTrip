@@ -76,6 +76,77 @@
             </a>
             <div v-if="collapsed" class="space-y-0.5">
                 <a
+                    href="/admin/rentals"
+                    :class="[
+                        'flex items-center rounded-xl py-2.5 text-sm font-medium transition-colors',
+                        'justify-center px-2',
+                        isRentalsSection
+                            ? 'bg-blue-500/20 text-blue-300'
+                            : 'text-slate-300 hover:bg-slate-700/50 hover:text-white',
+                    ]"
+                    :title="t('admin.sidebar.rentals')"
+                >
+                    <BuildingOffice2Icon class="h-5 w-5 shrink-0" />
+                </a>
+            </div>
+            <template v-else>
+                <button
+                    type="button"
+                    :class="[
+                        'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors',
+                        rentalsOpen || isRentalsSection
+                            ? 'bg-blue-500/20 text-blue-300'
+                            : 'text-slate-300 hover:bg-slate-700/50 hover:text-white',
+                    ]"
+                    @click="rentalsOpen = !rentalsOpen"
+                >
+                    <BuildingOffice2Icon class="h-5 w-5 shrink-0" />
+                    <span class="truncate">{{ t('admin.sidebar.rentals') }}</span>
+                    <ChevronDownIcon
+                        :class="['ml-auto h-4 w-4 shrink-0 transition-transform', rentalsOpen && 'rotate-180']"
+                    />
+                </button>
+                <div v-show="rentalsOpen" class="mt-0.5 space-y-0.5 pl-4">
+                    <a
+                        href="/admin/rentals"
+                        :class="[
+                            'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
+                            isRentalsList
+                                ? 'bg-blue-500/20 font-medium text-blue-300'
+                                : 'text-slate-400 hover:bg-slate-700/50 hover:text-white',
+                        ]"
+                    >
+                        <BuildingOffice2Icon class="h-4 w-4 shrink-0" />
+                        <span class="truncate">{{ t('admin.sidebar.rentals_list') }}</span>
+                    </a>
+                    <a
+                        href="/admin/rentals/types"
+                        :class="[
+                            'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
+                            isRentalsTypes
+                                ? 'bg-blue-500/20 font-medium text-blue-300'
+                                : 'text-slate-400 hover:bg-slate-700/50 hover:text-white',
+                        ]"
+                    >
+                        <TagIcon class="h-4 w-4 shrink-0" />
+                        <span class="truncate">{{ t('admin.sidebar.rental_types') }}</span>
+                    </a>
+                    <a
+                        href="/admin/rentals/amenities"
+                        :class="[
+                            'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
+                            isRentalsAmenities
+                                ? 'bg-blue-500/20 font-medium text-blue-300'
+                                : 'text-slate-400 hover:bg-slate-700/50 hover:text-white',
+                        ]"
+                    >
+                        <SparklesIcon class="h-4 w-4 shrink-0" />
+                        <span class="truncate">{{ t('admin.sidebar.rental_amenities') }}</span>
+                    </a>
+                </div>
+            </template>
+            <div v-if="collapsed" class="space-y-0.5">
+                <a
                     href="/admin/blog"
                     :class="[
                         'flex items-center rounded-xl py-2.5 text-sm font-medium transition-colors',
@@ -206,12 +277,15 @@ import {
     Squares2X2Icon,
     PhotoIcon,
     DocumentTextIcon,
+    BuildingOffice2Icon,
     NewspaperIcon,
     UsersIcon,
     Cog6ToothIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
     ChevronDownIcon,
+    TagIcon,
+    SparklesIcon,
 } from '@heroicons/vue/24/outline';
 import { getTaxonomyIconComponent } from '../data/taxonomyIcons';
 
@@ -222,6 +296,7 @@ defineEmits(['update:collapsed']);
 
 const { t } = useI18n();
 const blogOpen = ref(false);
+const rentalsOpen = ref(false);
 
 const isDashboard = computed(() => {
     if (typeof window === 'undefined') return false;
@@ -236,6 +311,26 @@ const isMedia = computed(() => {
 const isContent = computed(() => {
     if (typeof window === 'undefined') return false;
     return window.location.pathname.startsWith('/admin/content');
+});
+
+const isRentalsSection = computed(() => {
+    if (typeof window === 'undefined') return false;
+    return window.location.pathname.startsWith('/admin/rentals');
+});
+
+const isRentalsList = computed(() => {
+    if (typeof window === 'undefined') return false;
+    return window.location.pathname === '/admin/rentals';
+});
+
+const isRentalsTypes = computed(() => {
+    if (typeof window === 'undefined') return false;
+    return window.location.pathname.startsWith('/admin/rentals/types');
+});
+
+const isRentalsAmenities = computed(() => {
+    if (typeof window === 'undefined') return false;
+    return window.location.pathname.startsWith('/admin/rentals/amenities');
 });
 
 const isUsers = computed(() => {
@@ -274,6 +369,9 @@ const isSettings = computed(() => {
 onMounted(() => {
     if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin/blog')) {
         blogOpen.value = true;
+    }
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin/rentals')) {
+        rentalsOpen.value = true;
     }
 });
 </script>

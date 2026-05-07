@@ -1,27 +1,27 @@
 <template>
-    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div class="border-b border-slate-200 bg-slate-50 px-4 py-3">
+    <div class="rounded-lg border border-[#c3c4c7] bg-white shadow-sm">
+        <div class="border-b border-[#c3c4c7] bg-[#f6f7f7] px-4 py-3">
             <h3 class="text-sm font-semibold text-slate-800">{{ title }}</h3>
         </div>
-        <div class="space-y-4 p-4">
-            <div class="flex flex-wrap items-baseline justify-between gap-2">
+        <div class="space-y-3 p-4">
+            <div class="flex items-baseline justify-between gap-2">
                 <span class="text-sm text-slate-600">
                     {{ statusLabel }}:
-                    <strong class="text-slate-900">{{ statusText }}</strong>
+                    <strong>{{ statusText }}</strong>
                 </span>
                 <button
                     type="button"
-                    class="text-sm font-medium text-blue-600 hover:text-blue-800"
+                    class="text-sm text-[#2271b1] hover:underline"
                     @click="$emit('toggle-status-edit')"
                 >
                     {{ editLabel }}
                 </button>
             </div>
 
-            <div v-if="statusEditOpen">
+            <div v-if="statusEditOpen" class="pt-1">
                 <select
                     :value="status"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    class="block w-full rounded border border-[#8c8f94] px-2 py-1.5 text-sm focus:border-[#2271b1] focus:ring-1 focus:ring-[#2271b1]"
                     @change="$emit('update:status', $event.target.value)"
                 >
                     <option value="draft">{{ draftLabel }}</option>
@@ -29,29 +29,23 @@
                 </select>
             </div>
 
-            <p class="text-xs leading-relaxed text-slate-500">
+            <p class="text-sm text-slate-600">
                 {{ visibilityHint }}
             </p>
 
-            <p
-                v-if="isEdit && updatedAt"
-                class="text-xs text-slate-500"
-            >
+            <p v-if="isEdit && updatedAt" class="text-sm text-slate-600">
                 {{ updatedAtLabel }}: {{ updatedAt }}
             </p>
 
             <button
                 type="submit"
                 :disabled="saving"
-                class="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50"
+                class="w-full rounded border-0 bg-[#2271b1] py-2.5 text-sm font-normal text-white hover:bg-[#135e96] disabled:opacity-50"
             >
                 {{ submitText }}
             </button>
 
-            <p
-                v-if="saveError"
-                class="text-sm text-red-600"
-            >
+            <p v-if="saveError" class="text-sm text-red-600">
                 {{ saveError }}
             </p>
         </div>

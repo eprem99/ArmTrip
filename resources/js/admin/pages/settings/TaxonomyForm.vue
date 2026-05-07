@@ -21,25 +21,31 @@
         <template v-else>
             <div class="grid gap-6 lg:grid-cols-3">
                 <div class="space-y-6 lg:col-span-2">
+                    <ContentTitlePermalinkCard
+                        :title="form.name"
+                        :slug="form.slug"
+                        :is-home="false"
+                        :permalink-base="permalinkBase"
+                        :slug-locked="slugLocked"
+                        :slug-checking="slugChecking"
+                        :slug-available="slugAvailable"
+                        :title-error="errors.name"
+                        :slug-error="errors.slug"
+                        :title-placeholder="t('admin.taxonomies.taxonomy_form_title_placeholder')"
+                        :permalink-label="t('admin.content.permalink')"
+                        :slug-sample="t('admin.content.slug_sample')"
+                        :slug-edit-label="t('admin.content.slug_edit')"
+                        :slug-checking-label="t('admin.content.slug_checking')"
+                        :slug-available-label="t('admin.content.slug_available')"
+                        :slug-taken-label="t('admin.content.slug_taken')"
+                        @update:title="(v) => (form.name = v)"
+                        @update:slug="(v) => (form.slug = v)"
+                        @unlock-slug="unlockSlug"
+                        @lock-slug="lockSlug"
+                    />
+
                     <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
                         <div class="space-y-4">
-                            <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">{{ t('admin.taxonomies.form_name') }}</label>
-                                <input
-                                    v-model="form.name"
-                                    type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                />
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-sm font-medium text-slate-700">{{ t('admin.taxonomies.form_slug') }}</label>
-                                <input
-                                    v-model="form.slug"
-                                    type="text"
-                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                />
-                                <p class="mt-1 text-xs text-slate-500">{{ t('admin.taxonomies.form_slug_hint') }}</p>
-                            </div>
                             <div>
                                 <label class="mb-1 block text-sm font-medium text-slate-700">{{ t('admin.taxonomies.form_type') }}</label>
                                 <select
@@ -70,6 +76,29 @@
                         :empty-label="t('admin.taxonomies.form_icon_none')"
                         :suggested-icon-key="suggestedIconForSlug"
                     />
+                    <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+                        <h3 class="mb-3 text-sm font-semibold text-slate-800">{{ t('admin.content.form_language') }}</h3>
+                        <div v-if="!isEdit">
+                            <label for="taxonomy_language_id" class="mb-1 block text-sm font-medium text-slate-700">{{ t('admin.content.form_language') }}</label>
+                            <select
+                                id="taxonomy_language_id"
+                                v-model.number="form.language_id"
+                                :disabled="languageLocked"
+                                class="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-slate-100"
+                            >
+                                <option v-for="lang in activeLanguages" :key="lang.id" :value="lang.id">
+                                    {{ lang.native_name || lang.name }} ({{ lang.lcode }})
+                                </option>
+                            </select>
+                            <p class="mt-1 text-xs text-slate-500">{{ t('admin.content.form_language_hint') }}</p>
+                        </div>
+                        <div v-else-if="taxonomyLanguageLabel">
+                            <p class="text-sm text-slate-600">
+                                <span class="font-medium text-slate-800">{{ t('admin.content.form_language') }}:</span>
+                                {{ taxonomyLanguageLabel }}
+                            </p>
+                        </div>
+                    </div>
                     <ContentFeaturedImageCard
                         v-model="form.image"
                         :title="t('admin.taxonomies.form_hero_image')"
@@ -124,11 +153,12 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, onMounted } from 'vue';
+import { reactive, ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { useI18n } from '../../composables/useI18n';
 import AdminMediaPickerModal from '../../components/media/AdminMediaPickerModal.vue';
 import ContentFeaturedImageCard from '../../components/content/ContentFeaturedImageCard.vue';
+import ContentTitlePermalinkCard from '../../components/content/ContentTitlePermalinkCard.vue';
 import SeoBlock from '../../components/SeoBlock.vue';
 import TaxonomyIconSelect from '../../components/taxonomy/TaxonomyIconSelect.vue';
 import { taxonomySuggestedIconBySlug } from '../../data/taxonomyIcons';
@@ -148,11 +178,14 @@ const editSlugMatch = path.match(/^\/admin\/settings\/taxonomies\/([^/]+)\/edit$
 const editSlug = editSlugMatch ? editSlugMatch[1] : null;
 
 const originalSlug = ref('');
+const taxonomyId = ref(null);
 
-const pageLoading = ref(isEdit);
+const pageLoading = ref(true);
 const pageError = ref('');
 const saving = ref(false);
 const saveError = ref('');
+
+const errors = reactive({ name: '', slug: '' });
 
 const form = reactive({
     name: '',
@@ -161,6 +194,17 @@ const form = reactive({
     description: '',
     icon: null,
     image: '',
+    language_id: null,
+});
+
+const activeLanguages = ref([]);
+const translationGroupFromQuery = ref('');
+const languageLocked = ref(false);
+const taxonomyLanguageLabel = ref('');
+
+const listLang = computed(() => {
+    if (typeof window === 'undefined') return 'en';
+    return window.__locale || 'en';
 });
 
 const seoTitle = ref('');
@@ -170,6 +214,83 @@ const heroImageError = ref(false);
 const showHeroImageUrl = ref(false);
 
 const mediaPickerOpen = ref(false);
+
+const slugLocked = ref(true);
+const slugChecking = ref(false);
+const slugAvailable = ref(null);
+const slugSuggest = ref('');
+let slugCheckTimer = null;
+
+const permalinkBase = computed(() => {
+    if (typeof window === 'undefined') return '';
+    return `${window.location.origin}/blog/`;
+});
+
+function slugify(input) {
+    const str = (input || '').toString().trim().toLowerCase();
+    return str
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .replace(/-{2,}/g, '-');
+}
+
+function unlockSlug() {
+    slugLocked.value = false;
+}
+
+function lockSlug() {
+    slugLocked.value = true;
+}
+
+async function checkSlugUnique(slug) {
+    if (!slug) {
+        slugAvailable.value = null;
+        slugSuggest.value = '';
+        return;
+    }
+    slugChecking.value = true;
+    try {
+        const res = await axios.get('/admin/blog/api/taxonomies/check-slug', {
+            params: {
+                slug,
+                ignore_id: isEdit && taxonomyId.value ? taxonomyId.value : null,
+            },
+            headers: { Accept: 'application/json' },
+        });
+        slugAvailable.value = !!res.data?.available;
+        slugSuggest.value = res.data?.suggested || '';
+    } catch (_) {
+        slugAvailable.value = null;
+        slugSuggest.value = '';
+    } finally {
+        slugChecking.value = false;
+    }
+}
+
+watch(
+    () => form.name,
+    (name) => {
+        if (!slugLocked.value) return;
+        const next = slugify(name);
+        if (!next) return;
+        form.slug = next;
+    },
+);
+
+watch(
+    () => form.slug,
+    (slug) => {
+        if (slugCheckTimer) clearTimeout(slugCheckTimer);
+        slugCheckTimer = setTimeout(async () => {
+            await checkSlugUnique((slug || '').trim());
+            if (slugLocked.value && slugAvailable.value === false && slugSuggest.value) {
+                form.slug = slugSuggest.value;
+            }
+        }, 350);
+    },
+);
 
 function setCsrf() {
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -188,6 +309,38 @@ function onHeroImageSelected(item) {
     heroImageError.value = false;
 }
 
+async function loadLanguages() {
+    setCsrf();
+    try {
+        const { data } = await axios.get('/admin/settings/api/languages');
+        activeLanguages.value = (data || []).filter((l) => l.status === 'active');
+    } catch (_) {
+        activeLanguages.value = [];
+    }
+}
+
+function mapLocaleToLcode(loc) {
+    if (loc === 'ru') return 'ru';
+    if (loc === 'am') return 'am';
+    return 'en';
+}
+
+function applyCreateLanguageFromQuery() {
+    if (isEdit || !activeLanguages.value.length) return;
+    const qp = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    translationGroupFromQuery.value = qp.get('translation_group') || '';
+    const wanted = qp.get('lang');
+    const byQuery = wanted ? activeLanguages.value.find((l) => l.lcode === wanted) : null;
+    const byLocale = activeLanguages.value.find(
+        (l) => l.lcode === mapLocaleToLcode(typeof window !== 'undefined' ? window.__locale : 'en'),
+    );
+    const pick = byQuery || byLocale || activeLanguages.value[0];
+    if (pick) {
+        form.language_id = pick.id;
+    }
+    languageLocked.value = !!(translationGroupFromQuery.value && wanted);
+}
+
 async function loadTaxonomy() {
     if (!isEdit || !editSlug) {
         pageLoading.value = false;
@@ -196,8 +349,11 @@ async function loadTaxonomy() {
     setCsrf();
     pageError.value = '';
     try {
-        const { data } = await axios.get(`/admin/blog/api/taxonomies/${encodeURIComponent(editSlug)}`);
+        const { data } = await axios.get(`/admin/blog/api/taxonomies/${encodeURIComponent(editSlug)}`, {
+            params: { lang: listLang.value },
+        });
         originalSlug.value = data.slug || editSlug;
+        taxonomyId.value = data.id ?? null;
         form.name = data.name ?? '';
         form.slug = data.slug ?? '';
         form.type = data.type === 'tag' ? 'tag' : 'category';
@@ -206,6 +362,10 @@ async function loadTaxonomy() {
         form.image = data.image ?? '';
         seoTitle.value = data.seo_title ?? '';
         seoDescription.value = data.seo_description ?? '';
+        const lang = data.language;
+        taxonomyLanguageLabel.value = lang
+            ? `${lang.native_name || lang.name} (${lang.lcode})`
+            : '';
     } catch (e) {
         pageError.value = e.response?.data?.message || t('admin.taxonomies.detail_not_found');
     } finally {
@@ -215,8 +375,11 @@ async function loadTaxonomy() {
 
 async function save() {
     saveError.value = '';
+    errors.name = '';
+    errors.slug = '';
     if (!form.name?.trim()) {
         saveError.value = t('admin.taxonomies.form_name');
+        errors.name = saveError.value;
         return;
     }
 
@@ -234,6 +397,13 @@ async function save() {
             seo_description: seoDescription.value?.trim() ?? '',
         };
 
+        if (!isEdit) {
+            payload.language_id = form.language_id;
+            if (translationGroupFromQuery.value) {
+                payload.translation_group_id = translationGroupFromQuery.value;
+            }
+        }
+
         if (isEdit && originalSlug.value) {
             await axios.put(`/admin/blog/api/taxonomies/${encodeURIComponent(originalSlug.value)}`, payload);
         } else {
@@ -244,15 +414,25 @@ async function save() {
         window.location.reload();
     } catch (e) {
         const msg = e.response?.data?.message;
-        const errors = e.response?.data?.errors;
+        const errBag = e.response?.data?.errors;
+        if (errBag) {
+            errors.name = (errBag.name && errBag.name[0]) || '';
+            errors.slug = (errBag.slug && errBag.slug[0]) || '';
+        }
         saveError.value =
-            (errors && Object.values(errors).flat().join(' ')) || msg || t('admin.taxonomies.save_error');
+            (errBag && Object.values(errBag).flat().join(' ')) || msg || t('admin.taxonomies.save_error');
     } finally {
         saving.value = false;
     }
 }
 
-onMounted(() => {
-    loadTaxonomy();
+onMounted(async () => {
+    await loadLanguages();
+    if (isEdit && editSlug) {
+        await loadTaxonomy();
+    } else {
+        applyCreateLanguageFromQuery();
+        pageLoading.value = false;
+    }
 });
 </script>

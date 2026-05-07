@@ -8,7 +8,7 @@
                 </p>
             </div>
             <a
-                href="/admin/content/pages/create"
+                :href="createPageHref"
                 class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
             >
                 <PlusIcon class="h-5 w-5 shrink-0" />
@@ -21,7 +21,7 @@
                 <p class="text-sm text-slate-600">
                     {{ filteredPages.length }} {{ t('admin.content.count') }}
                 </p>
-                <div class="relative">
+                <div class="relative ml-auto">
                     <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
                         v-model="searchQuery"
@@ -46,30 +46,48 @@
                     <th class="px-4 py-3">{{ t('admin.content.col_status') }}</th>
                     <th class="px-4 py-3">{{ t('admin.content.col_sort_order') }}</th>
                     <th class="px-4 py-3">{{ t('admin.content.col_created_at') }}</th>
+                    <th class="px-4 py-3">{{ t('admin.content.col_other_languages') }}</th>
                     <th class="px-4 py-3 text-right">{{ t('admin.content.action') }}</th>
                 </template>
 
                 <tr
-                    v-for="page in pagedPages"
-                    :key="page.id"
+                    v-for="row in pagedPages"
+                    :key="row.translation_group_id || row.page?.id"
                     class="hover:bg-slate-50"
                 >
-                    <td class="px-4 py-3 font-medium text-slate-900">{{ page.title }}</td>
-                    <td class="px-4 py-3 text-slate-700 font-mono text-xs">{{ page.slug }}</td>
+                    <td class="px-4 py-3 font-medium text-slate-900">{{ row.page?.title || '—' }}</td>
+                    <td class="px-4 py-3 text-slate-700 font-mono text-xs">{{ row.page?.slug ?? '—' }}</td>
                     <td class="px-4 py-3">
                         <span
                             class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
-                            :class="page.status === 'published' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'"
+                            :class="row.page?.status === 'published' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'"
                         >
-                            {{ page.status === 'published' ? t('admin.content.status_published') : t('admin.content.status_draft') }}
+                            {{ row.page?.status === 'published' ? t('admin.content.status_published') : t('admin.content.status_draft') }}
                         </span>
                     </td>
-                    <td class="px-4 py-3 text-slate-700">{{ page.sort_order }}</td>
-                    <td class="px-4 py-3 text-slate-600">{{ formatDate(page.created_at) }}</td>
+                    <td class="px-4 py-3 text-slate-700">{{ row.page?.sort_order ?? '—' }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ formatDate(row.page?.created_at) }}</td>
+                    <td class="px-4 py-3">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <a
+                                v-for="item in translationActions(row)"
+                                :key="item.lcode"
+                                :href="item.href"
+                                class="inline-flex items-center gap-1 rounded-lg border bg-white px-2 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:border-[#2271b1] hover:text-[#2271b1] hover:shadow"
+                                :class="item.isCreate ? 'border-dashed border-slate-300' : 'border-slate-200'"
+                                :title="item.title"
+                            >
+                                <span class="font-mono text-[10px] uppercase tracking-wide text-slate-500">{{ item.lcode }}</span>
+                                <PlusIcon v-if="item.isCreate" class="h-4 w-4 shrink-0" />
+                                <PencilSquareIcon v-else class="h-4 w-4 shrink-0" />
+                            </a>
+                            <span v-if="translationActions(row).length === 0" class="text-xs text-slate-400">—</span>
+                        </div>
+                    </td>
                     <td class="px-4 py-3">
                         <div class="flex items-center justify-end gap-2">
                             <a
-                                :href="`/admin/content/pages/${page.id}/edit`"
+                                :href="`/admin/content/pages/${row.page?.id}/edit`"
                                 class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                                 :title="t('admin.content.edit')"
                             >
@@ -79,7 +97,7 @@
                                 type="button"
                                 class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600"
                                 :title="t('admin.content.delete')"
-                                @click="openDeleteModal(page)"
+                                @click="openDeleteModal(row.page)"
                             >
                                 <TrashIcon class="h-4 w-4" />
                             </button>
@@ -87,7 +105,7 @@
                     </td>
                 </tr>
                 <tr v-if="filteredPages.length === 0">
-                    <td colspan="6" class="px-4 py-8 text-center text-slate-500">
+                    <td colspan="7" class="px-4 py-8 text-center text-slate-500">
                         {{ t('admin.content.empty') }}
                     </td>
                 </tr>
@@ -147,7 +165,7 @@
                     <p class="mt-2 text-sm text-slate-600">
                         {{ t('admin.content.delete_confirm_message') }}
                         <span v-if="pageToDelete" class="font-medium text-slate-900">
-                            «{{ pageToDelete.title }}»
+                            «{{ pageToDelete?.title }}»
                         </span>?
                     </p>
                     <div class="mt-6 flex flex-wrap gap-3">
@@ -182,6 +200,14 @@ import AdminTable from '../../components/AdminTable.vue';
 
 const { t, locale } = useI18n();
 
+/** Syncs with admin navbar locale (window.__locale) after /locale/xx redirect */
+const listLang = computed(() => {
+    if (typeof window === 'undefined') return 'en';
+    return window.__locale || 'en';
+});
+
+const languageOptions = ref([]);
+
 const pages = ref([]);
 const searchQuery = ref('');
 const searchDebounce = ref(null);
@@ -200,11 +226,52 @@ function setCsrf() {
     }
 }
 
+const createPageHref = computed(() => {
+    const q = new URLSearchParams({ lang: listLang.value || 'en' });
+
+    return `/admin/content/pages/create?${q.toString()}`;
+});
+
+/**
+ * For each site language except the current UI language: edit existing translation or create URL.
+ */
+function translationActions(row) {
+    const current = listLang.value;
+    const gid = row.translation_group_id;
+    if (!gid || !languageOptions.value.length) {
+        return [];
+    }
+
+    return languageOptions.value
+        .filter((l) => l.lcode !== current)
+        .map((lang) => {
+            const label = lang.native_name || lang.name || lang.lcode;
+            const tr = (row.translations || []).find((x) => x.lcode === lang.lcode);
+            if (tr) {
+                return {
+                    lcode: lang.lcode,
+                    href: `/admin/content/pages/${tr.page_id}/edit`,
+                    isCreate: false,
+                    title: t('admin.content.edit_translation_title').replace(':lang', label),
+                };
+            }
+
+            return {
+                lcode: lang.lcode,
+                href: `/admin/content/pages/create?lang=${encodeURIComponent(lang.lcode)}&translation_group=${encodeURIComponent(gid)}`,
+                isCreate: true,
+                title: t('admin.content.translation_create_title').replace(':lang', label),
+            };
+        });
+}
+
 function formatDate(value) {
     if (!value) return '—';
     try {
         const d = new Date(value);
-        return d.toLocaleDateString(locale.value === 'ru' ? 'ru-RU' : 'en-US', {
+        const loc = typeof locale === 'string' ? locale : locale?.value;
+        const dateLoc = loc === 'ru' ? 'ru-RU' : loc === 'am' ? 'hy-AM' : 'en-US';
+        return d.toLocaleDateString(dateLoc, {
             year: 'numeric',
             month: 'short',
             day: 'numeric',
@@ -214,12 +281,24 @@ function formatDate(value) {
     }
 }
 
+async function loadLanguages() {
+    setCsrf();
+    try {
+        const { data } = await axios.get('/admin/settings/api/languages');
+        languageOptions.value = (data || []).filter((l) => l.status === 'active');
+    } catch (_) {
+        languageOptions.value = [];
+    }
+}
+
 async function load() {
     setCsrf();
     loading.value = true;
     error.value = '';
     try {
-        const { data } = await axios.get('/admin/content/api/pages');
+        const { data } = await axios.get('/admin/content/api/pages', {
+            params: { lang: listLang.value },
+        });
         pages.value = data;
         currentPage.value = 1;
     } catch (e) {
@@ -232,9 +311,9 @@ async function load() {
 const filteredPages = computed(() => {
     const q = searchQuery.value.trim().toLowerCase();
     if (!q) return pages.value;
-    return pages.value.filter((p) => {
-        const title = (p.title || '').toLowerCase();
-        const slug = (p.slug || '').toLowerCase();
+    return pages.value.filter((row) => {
+        const title = (row.page?.title || '').toLowerCase();
+        const slug = (row.page?.slug || '').toLowerCase();
         return title.includes(q) || slug.includes(q);
     });
 });
@@ -296,6 +375,9 @@ async function confirmDelete() {
     }
 }
 
-onMounted(load);
+onMounted(async () => {
+    await loadLanguages();
+    await load();
+});
 </script>
 

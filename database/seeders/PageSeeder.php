@@ -2,8 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\Language;
 use App\Models\Page;
+use App\Models\Translation;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class PageSeeder extends Seeder
 {
@@ -12,6 +15,13 @@ class PageSeeder extends Seeder
      */
     public function run(): void
     {
+        $languageId = Language::query()->where('lcode', 'en')->value('id')
+            ?? Language::query()->orderBy('id')->value('id');
+
+        if (! $languageId) {
+            return;
+        }
+
         $pages = [
             [
                 'slug' => 'home',
@@ -43,10 +53,28 @@ class PageSeeder extends Seeder
         ];
 
         foreach ($pages as $data) {
-            Page::updateOrCreate(
+            $page = Page::query()->updateOrCreate(
                 ['slug' => $data['slug']],
                 $data
             );
+
+            $tr = Translation::query()
+                ->where('content_id', $page->id)
+                ->where('type', Translation::TYPE_PAGE)
+                ->first();
+
+            if ($tr) {
+                $tr->update([
+                    'language_id' => $languageId,
+                ]);
+            } else {
+                Translation::create([
+                    'translation_group_id' => (string) Str::uuid(),
+                    'content_id' => $page->id,
+                    'language_id' => $languageId,
+                    'type' => Translation::TYPE_PAGE,
+                ]);
+            }
         }
     }
 }

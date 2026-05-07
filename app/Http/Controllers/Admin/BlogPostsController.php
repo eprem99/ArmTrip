@@ -3,10 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Language;
 use App\Models\Post;
+use App\Models\Translation;
+use App\Support\SlugGenerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -69,74 +73,179 @@ class BlogPostsController extends Controller
         ]);
     }
 
+    /**
+     * Suggest a unique post slug from title (Str::slug + numeric suffix).
+     */
+    public function suggestSlug(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'title' => ['nullable', 'string', 'max:255'],
+            'slug' => ['nullable', 'string', 'max:255'],
+            'ignore_id' => ['nullable', 'integer'],
+        ]);
+
+        $slug = SlugGenerator::uniquePostSlug(
+            $validated['title'] ?? '',
+            $validated['slug'] ?? '',
+            $validated['ignore_id'] ?? null,
+        );
+
+        return response()->json(['slug' => $slug]);
+    }
+
+    /**
+     * Grouped posts for the current UI language (same shape as pages list).
+     */
     public function index(Request $request): JsonResponse
     {
-        $perPage = max(5, min(100, (int) $request->get('per_page', 15)));
+        $lcode = (string) $request->get('lang', 'en');
+        $lang = Language::query()->where('lcode', $lcode)->first()
+            ?? Language::query()->orderBy('id')->firstOrFail();
 
-        $query = Post::query()->orderBy('created_at', 'desc');
+        $postIds = Translation::query()
+            ->where('type', Translation::TYPE_POST)
+            ->where('language_id', $lang->id)
+            ->pluck('content_id');
 
-        if ($request->filled('search')) {
-            $term = '%'.$request->get('search').'%';
-            $query->where(function ($q) use ($term) {
-                $q->where('title', 'like', $term)
-                    ->orWhere('slug', 'like', $term);
-            });
+        if ($postIds->isEmpty()) {
+            return response()->json([]);
         }
 
-        $posts = $query->paginate($perPage);
+        $posts = Post::query()
+            ->whereIn('id', $postIds)
+            ->with(['translation.language'])
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-        return response()->json($posts);
+        $groupIds = $posts
+            ->map(fn (Post $p) => $p->translation?->translation_group_id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($groupIds->isEmpty()) {
+            return response()->json([]);
+        }
+
+        $allInGroups = Translation::query()
+            ->where('type', Translation::TYPE_POST)
+            ->whereIn('translation_group_id', $groupIds)
+            ->with('language:id,lcode,native_name,name')
+            ->get()
+            ->groupBy('translation_group_id');
+
+        $result = $posts->map(function (Post $post) use ($allInGroups) {
+            $tg = $post->translation?->translation_group_id;
+            if (! $tg) {
+                return null;
+            }
+            $siblings = $allInGroups->get($tg, collect())->values();
+
+            return [
+                'translation_group_id' => $tg,
+                'post' => $post,
+                'translations' => $siblings->map(fn (Translation $tr) => [
+                    'post_id' => $tr->content_id,
+                    'language_id' => $tr->language_id,
+                    'lcode' => $tr->language?->lcode ?? '',
+                    'label' => $tr->language?->native_name ?? $tr->language?->name ?? $tr->language?->lcode ?? '',
+                ])->values()->all(),
+            ];
+        })->filter()->values();
+
+        return response()->json($result);
     }
 
     public function show(Post $post): JsonResponse
     {
-        return response()->json($post);
+        $post->load(['translation.language']);
+
+        $payload = $post->toArray();
+        $t = $post->translation;
+        $payload['language_id'] = $t?->language_id;
+        $payload['translation_group_id'] = $t?->translation_group_id;
+        $payload['language'] = $t?->language;
+
+        return response()->json($payload);
     }
 
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', 'unique:posts,slug'],
+            'slug' => ['nullable', 'string', 'max:255'],
             'excerpt' => ['nullable', 'string'],
             'content' => ['nullable', 'string'],
             'featured_image' => ['nullable', 'string', 'max:2048'],
             'status' => ['required', Rule::in(['draft', 'published'])],
             'published_at' => ['nullable', 'date'],
+            'language_id' => ['required', 'integer', 'exists:languages,id'],
+            'translation_group_id' => ['nullable', 'uuid'],
         ]);
 
-        $slug = trim((string) ($validated['slug'] ?? ''));
-        if ($slug === '') {
-            $slug = Str::slug($validated['title']);
+        $languageId = (int) $validated['language_id'];
+        $groupId = isset($validated['translation_group_id'])
+            ? trim((string) $validated['translation_group_id'])
+            : '';
+
+        if ($groupId !== '') {
+            $dup = Translation::query()
+                ->where('translation_group_id', $groupId)
+                ->where('language_id', $languageId)
+                ->where('type', Translation::TYPE_POST)
+                ->exists();
+            if ($dup) {
+                return response()->json(['message' => 'A translation for this language already exists in the group.'], 422);
+            }
         } else {
-            $slug = Str::slug($slug);
+            $groupId = (string) Str::uuid();
         }
 
-        $slugBase = $slug;
-        $i = 2;
-        while (Post::where('slug', $slug)->exists()) {
-            $slug = $slugBase.'-'.$i;
-            $i++;
-        }
+        unset($validated['language_id'], $validated['translation_group_id']);
 
-        $publishedAt = null;
-        if (($validated['status'] ?? 'draft') === 'published') {
-            $publishedAt = isset($validated['published_at']) && $validated['published_at']
-                ? Carbon::parse($validated['published_at'])
-                : now();
-        }
+        $post = DB::transaction(function () use ($validated, $groupId, $languageId) {
+            $slug = SlugGenerator::uniquePostSlug(
+                $validated['title'],
+                $validated['slug'] ?? '',
+                null,
+            );
 
-        $post = Post::create([
-            'title' => $validated['title'],
-            'slug' => $slug,
-            'excerpt' => $validated['excerpt'] ?? null,
-            'content' => $validated['content'] ?? null,
-            'featured_image' => $validated['featured_image'] ?? null,
-            'status' => $validated['status'],
-            'published_at' => $publishedAt,
-        ]);
+            $publishedAt = null;
+            if (($validated['status'] ?? 'draft') === 'published') {
+                $publishedAt = isset($validated['published_at']) && $validated['published_at']
+                    ? Carbon::parse($validated['published_at'])
+                    : now();
+            }
 
-        return response()->json($post, 201);
+            $post = Post::create([
+                'title' => $validated['title'],
+                'slug' => $slug,
+                'excerpt' => $validated['excerpt'] ?? null,
+                'content' => $validated['content'] ?? null,
+                'featured_image' => $validated['featured_image'] ?? null,
+                'status' => $validated['status'],
+                'published_at' => $publishedAt,
+            ]);
+
+            Translation::create([
+                'translation_group_id' => $groupId,
+                'content_id' => $post->id,
+                'language_id' => $languageId,
+                'type' => Translation::TYPE_POST,
+            ]);
+
+            return $post;
+        });
+
+        $post->load(['translation.language']);
+
+        $payload = $post->toArray();
+        $t = $post->translation;
+        $payload['language_id'] = $t?->language_id;
+        $payload['translation_group_id'] = $t?->translation_group_id;
+        $payload['language'] = $t?->language;
+
+        return response()->json($payload, 201);
     }
 
     public function update(Request $request, Post $post): JsonResponse
@@ -156,19 +265,11 @@ class BlogPostsController extends Controller
             'published_at' => ['nullable', 'date'],
         ]);
 
-        $slug = trim((string) ($validated['slug'] ?? ''));
-        if ($slug === '') {
-            $slug = Str::slug($validated['title']);
-        } else {
-            $slug = Str::slug($slug);
-        }
-
-        $slugBase = $slug;
-        $i = 2;
-        while (Post::where('slug', $slug)->where('id', '!=', $post->id)->exists()) {
-            $slug = $slugBase.'-'.$i;
-            $i++;
-        }
+        $slug = SlugGenerator::uniquePostSlug(
+            $validated['title'],
+            $validated['slug'] ?? $post->slug,
+            $post->id,
+        );
 
         $publishedAt = $post->published_at;
         if (($validated['status'] ?? 'draft') === 'published') {
@@ -190,7 +291,15 @@ class BlogPostsController extends Controller
         ]);
         $post->save();
 
-        return response()->json($post);
+        $post->load(['translation.language']);
+
+        $payload = $post->toArray();
+        $t = $post->translation;
+        $payload['language_id'] = $t?->language_id;
+        $payload['translation_group_id'] = $t?->translation_group_id;
+        $payload['language'] = $t?->language;
+
+        return response()->json($payload);
     }
 
     public function destroy(Post $post): JsonResponse

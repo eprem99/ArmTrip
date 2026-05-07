@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Str;
 
@@ -28,10 +29,18 @@ class Term extends Model
         'parent_id',
         'description',
         'status',
+        'image',
     ];
 
     protected static function booted(): void
     {
+        static::deleting(function (Term $term) {
+            Translation::query()
+                ->where('type', Translation::TYPE_TERM)
+                ->where('content_id', $term->id)
+                ->delete();
+        });
+
         static::creating(function (Term $term) {
             if (empty($term->slug)) {
                 $term->slug = Str::slug($term->name);
@@ -43,6 +52,24 @@ class Term extends Model
                 $term->slug = Str::slug($term->name);
             }
         });
+
+        static::deleting(function (Term $term) {
+            SeoContent::query()
+                ->where('type', 'term')
+                ->where('post_id', $term->id)
+                ->delete();
+        });
+    }
+
+    /**
+     * SEO meta (type=term in seo_content, post_id = term id).
+     *
+     * @return HasOne<SeoContent, Term>
+     */
+    public function seoContent(): HasOne
+    {
+        return $this->hasOne(SeoContent::class, 'post_id')
+            ->where('type', 'term');
     }
 
     public function taxonomy(): BelongsTo
@@ -63,6 +90,17 @@ class Term extends Model
     public function posts(): MorphToMany
     {
         return $this->morphedByMany(Post::class, 'termable');
+    }
+
+    /**
+     * Translation row for this term (type=term, content_id = terms.id).
+     *
+     * @return HasOne<Translation, Term>
+     */
+    public function translation(): HasOne
+    {
+        return $this->hasOne(Translation::class, 'content_id')
+            ->where('type', Translation::TYPE_TERM);
     }
 
     /**

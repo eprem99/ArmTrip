@@ -74,10 +74,26 @@ class Taxonomy extends Model
         });
 
         static::deleting(function (Taxonomy $taxonomy) {
+            Translation::query()
+                ->where('type', Translation::TYPE_TAXONOMY)
+                ->where('content_id', $taxonomy->id)
+                ->delete();
+
             SeoContent::query()
                 ->where('type', 'taxonomy')
                 ->where('post_id', $taxonomy->id)
                 ->delete();
         });
+    }
+
+    /**
+     * Translation row for this taxonomy (type=taxonomy, content_id = taxonomies.id).
+     *
+     * @return HasOne<Translation, Taxonomy>
+     */
+    public function translation(): HasOne
+    {
+        return $this->hasOne(Translation::class, 'content_id')
+            ->where('type', Translation::TYPE_TAXONOMY);
     }
 }

@@ -146,6 +146,36 @@
                     @pick="openMediaPickerForFeatured"
                 />
 
+                <!-- Language (new post / translation) -->
+                <div class="rounded-lg border border-[#c3c4c7] bg-white shadow-sm">
+                    <div class="border-b border-[#c3c4c7] bg-[#f6f7f7] px-4 py-3">
+                        <h3 class="text-sm font-semibold text-slate-800">{{ t('admin.content.form_language') }}</h3>
+                    </div>
+                    <div class="space-y-3 p-4">
+                        <div v-if="!isEdit">
+                            <label for="post_language_id" class="mb-1 block text-sm font-medium text-slate-700">{{ t('admin.content.form_language') }}</label>
+                            <select
+                                id="post_language_id"
+                                v-model.number="form.language_id"
+                                :disabled="languageLocked"
+                                class="block w-full rounded border border-[#8c8f94] px-2 py-1.5 text-sm focus:border-[#2271b1] focus:ring-1 focus:ring-[#2271b1] disabled:bg-slate-100"
+                            >
+                                <option v-for="lang in activeLanguages" :key="lang.id" :value="lang.id">
+                                    {{ lang.native_name || lang.name }} ({{ lang.lcode }})
+                                </option>
+                            </select>
+                            <p class="mt-1 text-xs text-slate-500">{{ t('admin.content.form_language_hint') }}</p>
+                        </div>
+                        <div v-else-if="postLoaded?.language">
+                            <p class="text-sm text-slate-600">
+                                <span class="font-medium text-slate-800">{{ t('admin.content.form_language') }}:</span>
+                                {{ postLoaded.language.native_name || postLoaded.language.name }}
+                                ({{ postLoaded.language.lcode }})
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
             </aside>
         </form>
 
@@ -219,7 +249,12 @@ const form = reactive({
     featured_image: '',
     status: 'draft',
     published_at: '',
+    language_id: null,
 });
+
+const activeLanguages = ref([]);
+const translationGroupFromQuery = ref('');
+const languageLocked = ref(false);
 
 const featuredImageError = ref(false);
 const showFeaturedUrl = ref(false);
@@ -248,18 +283,29 @@ const slugChecking = ref(false);
 const slugAvailable = ref(null); // null | boolean
 const slugSuggest = ref('');
 let slugCheckTimer = null;
+const slugTitleSyncReady = ref(!isEdit);
+let titleSlugTimer = null;
 
 const publishDate = ref('');
 const publishTime = ref('');
 
-function slugify(input) {
-    const str = (input || '').toString().trim().toLowerCase();
-    return str
-        .normalize('NFKD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .replace(/-{2,}/g, '-');
+async function applySuggestedPostSlug() {
+    if (!slugLocked.value || !slugTitleSyncReady.value) return;
+    setCsrf();
+    try {
+        const { data } = await axios.get('/admin/blog/api/posts/suggest-slug', {
+            params: {
+                title: form.title,
+                ignore_id: editId ? Number(editId) : undefined,
+            },
+            headers: { Accept: 'application/json' },
+        });
+        if (data?.slug) {
+            form.slug = data.slug;
+        }
+    } catch (_) {
+        /* ignore */
+    }
 }
 
 function unlockSlug() {
@@ -297,11 +343,12 @@ async function checkSlugUnique(slug) {
 
 watch(
     () => form.title,
-    (title) => {
+    () => {
         if (!slugLocked.value) return;
-        const next = slugify(title);
-        if (!next) return;
-        form.slug = next;
+        if (titleSlugTimer) clearTimeout(titleSlugTimer);
+        titleSlugTimer = setTimeout(() => {
+            applySuggestedPostSlug();
+        }, 400);
     },
 );
 
@@ -431,7 +478,30 @@ async function loadPost() {
         saveError.value = e.response?.data?.message || t('admin.blog_posts.save_error');
     } finally {
         loading.value = false;
+        slugTitleSyncReady.value = true;
     }
+}
+
+function mapLocaleToLcode(loc) {
+    if (loc === 'ru') return 'ru';
+    if (loc === 'am') return 'am';
+    return 'en';
+}
+
+function applyCreateLanguageFromQuery() {
+    if (isEdit || !activeLanguages.value.length) return;
+    const qp = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    translationGroupFromQuery.value = qp.get('translation_group') || '';
+    const wanted = qp.get('lang');
+    const byQuery = wanted ? activeLanguages.value.find((l) => l.lcode === wanted) : null;
+    const byLocale = activeLanguages.value.find(
+        (l) => l.lcode === mapLocaleToLcode(typeof window !== 'undefined' ? window.__locale : 'en'),
+    );
+    const pick = byQuery || byLocale || activeLanguages.value[0];
+    if (pick) {
+        form.language_id = pick.id;
+    }
+    languageLocked.value = !!(translationGroupFromQuery.value && wanted);
 }
 
 async function save() {
@@ -456,6 +526,13 @@ async function save() {
         payload.published_at = null;
     }
 
+    if (!isEdit) {
+        payload.language_id = form.language_id;
+        if (translationGroupFromQuery.value) {
+            payload.translation_group_id = translationGroupFromQuery.value;
+        }
+    }
+
     try {
         if (isEdit) {
             await axios.put(`/admin/blog/api/posts/${editId}`, payload);
@@ -475,12 +552,22 @@ async function save() {
     }
 }
 
-onMounted(() => {
+async function boot() {
+    setCsrf();
+    try {
+        const { data } = await axios.get('/admin/settings/api/languages');
+        activeLanguages.value = (data || []).filter((l) => l.status === 'active');
+    } catch (_) {
+        activeLanguages.value = [];
+    }
     if (isEdit) {
-        loadPost();
+        await loadPost();
     } else {
+        applyCreateLanguageFromQuery();
         loading.value = false;
     }
-});
+}
+
+onMounted(boot);
 </script>
 

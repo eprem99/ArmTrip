@@ -8,7 +8,7 @@
                 </p>
             </div>
             <a
-                href="/admin/settings/taxonomies/create"
+                :href="createTaxonomyHref"
                 class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
             >
                 <PlusIcon class="h-5 w-5 shrink-0" />
@@ -47,36 +47,54 @@
                     <th class="px-4 py-3">{{ t('admin.taxonomies.col_type') }}</th>
                     <th class="px-4 py-3">{{ t('admin.taxonomies.col_terms') }}</th>
                     <th class="px-4 py-3">{{ t('admin.taxonomies.col_created_at') }}</th>
+                    <th class="px-4 py-3">{{ t('admin.content.col_other_languages') }}</th>
                     <th class="px-4 py-3 text-right">{{ t('admin.taxonomies.action') }}</th>
                 </template>
 
                 <tr
                     v-for="row in pagedRows"
-                    :key="row.id"
+                    :key="row.translation_group_id || row.taxonomy?.id"
                     class="hover:bg-slate-50"
                 >
                     <td class="px-4 py-3 text-slate-500">
                         <component
-                            :is="getTaxonomyIconComponent(row.icon)"
+                            :is="getTaxonomyIconComponent(row.taxonomy?.icon)"
                             class="h-5 w-5"
                         />
                     </td>
-                    <td class="px-4 py-3 font-medium text-slate-900">{{ row.name }}</td>
-                    <td class="px-4 py-3 font-mono text-xs text-slate-700">{{ row.slug }}</td>
+                    <td class="px-4 py-3 font-medium text-slate-900">{{ row.taxonomy?.name }}</td>
+                    <td class="px-4 py-3 font-mono text-xs text-slate-700">{{ row.taxonomy?.slug }}</td>
                     <td class="px-4 py-3">
                         <span
                             class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
-                            :class="row.type === 'tag' ? 'bg-violet-50 text-violet-800' : 'bg-slate-100 text-slate-700'"
+                            :class="row.taxonomy?.type === 'tag' ? 'bg-violet-50 text-violet-800' : 'bg-slate-100 text-slate-700'"
                         >
-                            {{ row.type === 'tag' ? t('admin.taxonomies.type_tag') : t('admin.taxonomies.type_category') }}
+                            {{ row.taxonomy?.type === 'tag' ? t('admin.taxonomies.type_tag') : t('admin.taxonomies.type_category') }}
                         </span>
                     </td>
-                    <td class="px-4 py-3 text-slate-700">{{ row.terms_count ?? 0 }}</td>
-                    <td class="px-4 py-3 text-slate-600">{{ formatDate(row.created_at) }}</td>
+                    <td class="px-4 py-3 text-slate-700">{{ row.taxonomy?.terms_count ?? 0 }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ formatDate(row.taxonomy?.created_at) }}</td>
+                    <td class="px-4 py-3">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <a
+                                v-for="item in translationActions(row)"
+                                :key="item.lcode"
+                                :href="item.href"
+                                class="inline-flex items-center gap-1 rounded-lg border bg-white px-2 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:border-[#2271b1] hover:text-[#2271b1] hover:shadow"
+                                :class="item.isCreate ? 'border-dashed border-slate-300' : 'border-slate-200'"
+                                :title="item.title"
+                            >
+                                <span class="font-mono text-[10px] uppercase tracking-wide text-slate-500">{{ item.lcode }}</span>
+                                <PlusIcon v-if="item.isCreate" class="h-4 w-4 shrink-0" />
+                                <PencilSquareIcon v-else class="h-4 w-4 shrink-0" />
+                            </a>
+                            <span v-if="translationActions(row).length === 0" class="text-xs text-slate-400">—</span>
+                        </div>
+                    </td>
                     <td class="px-4 py-3">
                         <div class="flex items-center justify-end gap-2">
                             <a
-                                :href="`/admin/settings/taxonomies/${encodeURIComponent(row.slug)}/edit`"
+                                :href="`/admin/settings/taxonomies/${encodeURIComponent(row.taxonomy?.slug)}/edit`"
                                 class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                                 :title="t('admin.taxonomies.edit')"
                             >
@@ -86,7 +104,7 @@
                                 type="button"
                                 class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600"
                                 :title="t('admin.taxonomies.delete')"
-                                @click="openDeleteTaxonomy(row)"
+                                @click="openDeleteTaxonomy(row.taxonomy)"
                             >
                                 <TrashIcon class="h-4 w-4" />
                             </button>
@@ -94,7 +112,7 @@
                     </td>
                 </tr>
                 <tr v-if="filteredTaxonomies.length === 0">
-                    <td colspan="7" class="px-4 py-8 text-center text-slate-500">
+                    <td colspan="8" class="px-4 py-8 text-center text-slate-500">
                         {{ t('admin.taxonomies.empty') }}
                     </td>
                 </tr>
@@ -183,6 +201,12 @@ import { getTaxonomyIconComponent } from '../../data/taxonomyIcons';
 
 const { t } = useI18n();
 
+const listLang = computed(() => {
+    if (typeof window === 'undefined') return 'en';
+    return window.__locale || 'en';
+});
+
+const languageOptions = ref([]);
 const taxonomies = ref([]);
 const searchQuery = ref('');
 const searchDebounce = ref(null);
@@ -194,6 +218,41 @@ const error = ref('');
 const deleteTaxonomyModalOpen = ref(false);
 const taxonomyToDelete = ref(null);
 const taxonomyDeleting = ref(false);
+
+const createTaxonomyHref = computed(() => {
+    const q = new URLSearchParams({ lang: listLang.value || 'en' });
+    return `/admin/settings/taxonomies/create?${q.toString()}`;
+});
+
+function translationActions(row) {
+    const current = listLang.value;
+    const gid = row.translation_group_id;
+    if (!gid || !languageOptions.value.length) {
+        return [];
+    }
+
+    return languageOptions.value
+        .filter((l) => l.lcode !== current)
+        .map((lang) => {
+            const label = lang.native_name || lang.name || lang.lcode;
+            const tr = (row.translations || []).find((x) => x.lcode === lang.lcode);
+            if (tr?.slug) {
+                return {
+                    lcode: lang.lcode,
+                    href: `/admin/settings/taxonomies/${encodeURIComponent(tr.slug)}/edit`,
+                    isCreate: false,
+                    title: t('admin.content.edit_translation_title').replace(':lang', label),
+                };
+            }
+
+            return {
+                lcode: lang.lcode,
+                href: `/admin/settings/taxonomies/create?lang=${encodeURIComponent(lang.lcode)}&translation_group=${encodeURIComponent(gid)}`,
+                isCreate: true,
+                title: t('admin.content.translation_create_title').replace(':lang', label),
+            };
+        });
+}
 
 function localeForDate() {
     const loc = typeof window !== 'undefined' ? window.__locale : 'en';
@@ -223,12 +282,24 @@ function formatDate(value) {
     }
 }
 
+async function loadLanguages() {
+    setCsrf();
+    try {
+        const { data } = await axios.get('/admin/settings/api/languages');
+        languageOptions.value = (data || []).filter((l) => l.status === 'active');
+    } catch (_) {
+        languageOptions.value = [];
+    }
+}
+
 async function load() {
     setCsrf();
     loading.value = true;
     error.value = '';
     try {
-        const { data } = await axios.get('/admin/blog/api/taxonomies');
+        const { data } = await axios.get('/admin/blog/api/taxonomies', {
+            params: { lang: listLang.value },
+        });
         taxonomies.value = Array.isArray(data) ? data : [];
         currentPage.value = 1;
     } catch (e) {
@@ -242,9 +313,10 @@ const filteredTaxonomies = computed(() => {
     const q = searchQuery.value.trim().toLowerCase();
     if (!q) return taxonomies.value;
     return taxonomies.value.filter((row) => {
-        const name = (row.name || '').toLowerCase();
-        const slug = (row.slug || '').toLowerCase();
-        const type = (row.type || '').toLowerCase();
+        const trow = row.taxonomy || {};
+        const name = (trow.name || '').toLowerCase();
+        const slug = (trow.slug || '').toLowerCase();
+        const type = (trow.type || '').toLowerCase();
         return name.includes(q) || slug.includes(q) || type.includes(q);
     });
 });
@@ -304,7 +376,8 @@ async function confirmDeleteTaxonomy() {
     }
 }
 
-onMounted(() => {
-    load();
+onMounted(async () => {
+    await loadLanguages();
+    await load();
 });
 </script>

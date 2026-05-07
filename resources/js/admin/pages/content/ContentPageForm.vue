@@ -108,6 +108,28 @@
                         <h3 class="text-sm font-semibold text-slate-800">{{ t('admin.content.page_attributes') }}</h3>
                     </div>
                     <div class="space-y-3 p-4">
+                        <div v-if="!isEdit">
+                            <label for="page_language_id" class="mb-1 block text-sm font-medium text-slate-700">{{ t('admin.content.form_language') }}</label>
+                            <select
+                                id="page_language_id"
+                                v-model.number="form.language_id"
+                                :disabled="languageLocked"
+                                class="block w-full rounded border border-[#8c8f94] px-2 py-1.5 text-sm focus:border-[#2271b1] focus:ring-1 focus:ring-[#2271b1] disabled:bg-slate-100"
+                                @change="onLanguageChange"
+                            >
+                                <option v-for="lang in activeLanguages" :key="lang.id" :value="lang.id">
+                                    {{ lang.native_name || lang.name }} ({{ lang.lcode }})
+                                </option>
+                            </select>
+                            <p class="mt-1 text-xs text-slate-500">{{ t('admin.content.form_language_hint') }}</p>
+                        </div>
+                        <div v-else-if="pageLoaded?.language">
+                            <p class="text-sm text-slate-600">
+                                <span class="font-medium text-slate-800">{{ t('admin.content.form_language') }}:</span>
+                                {{ pageLoaded.language.native_name || pageLoaded.language.name }}
+                                ({{ pageLoaded.language.lcode }})
+                            </p>
+                        </div>
                         <div>
                             <label for="parent_id" class="mb-1 block text-sm font-medium text-slate-700">{{ t('admin.content.parent') }}</label>
                             <select
@@ -280,12 +302,13 @@ const form = reactive({
     sort_order: 0,
     parent_id: null,
     featured_image: '',
+    language_id: null,
 });
 
 const errors = reactive({ title: '', slug: '' });
 const saving = ref(false);
 const saveError = ref('');
-const loading = ref(!!editId);
+const loading = ref(true);
 const pageLoaded = ref(null);
 const allPages = ref([]);
 const showFeaturedUrl = ref(false);
@@ -297,6 +320,10 @@ const deleting = ref(false);
 
 const seoTitle = ref('');
 const seoDescription = ref('');
+
+const activeLanguages = ref([]);
+const translationGroupFromQuery = ref('');
+const languageLocked = ref(false);
 
 const permalinkBase = computed(() => {
     if (typeof window === 'undefined') return '';
@@ -314,15 +341,27 @@ const slugChecking = ref(false);
 const slugAvailable = ref(null); // null | boolean
 const slugSuggest = ref('');
 let slugCheckTimer = null;
+/** After initial load in edit mode, title→slug sync is allowed (avoids overwriting saved slug on load). */
+const slugTitleSyncReady = ref(!isEdit);
+let titleSlugTimer = null;
 
-function slugify(input) {
-    const str = (input || '').toString().trim().toLowerCase();
-    return str
-        .normalize('NFKD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .replace(/-{2,}/g, '-');
+async function applySuggestedPageSlug() {
+    if (form.is_home || !slugLocked.value || !slugTitleSyncReady.value) return;
+    setCsrf();
+    try {
+        const { data } = await axios.get('/admin/content/api/pages/suggest-slug', {
+            params: {
+                title: form.title,
+                ignore_id: editId ? Number(editId) : undefined,
+            },
+            headers: { Accept: 'application/json' },
+        });
+        if (data?.slug) {
+            form.slug = data.slug;
+        }
+    } catch (_) {
+        /* ignore */
+    }
 }
 
 function unlockSlug() {
@@ -339,12 +378,16 @@ async function checkSlugUnique(slug) {
         slugSuggest.value = '';
         return;
     }
+    if (form.language_id == null) {
+        return;
+    }
     slugChecking.value = true;
     try {
         const res = await axios.get('/admin/content/api/pages/check-slug', {
             params: {
                 slug,
                 ignore_id: editId ? Number(editId) : null,
+                language_id: form.language_id,
             },
             headers: { Accept: 'application/json' },
         });
@@ -364,18 +407,21 @@ watch(
         if (isHome) {
             form.slug = '';
             slugLocked.value = true;
+        } else {
+            applySuggestedPageSlug();
         }
     },
 );
 
 watch(
     () => form.title,
-    (title) => {
+    () => {
         if (form.is_home) return;
         if (!slugLocked.value) return;
-        const next = slugify(title);
-        if (!next) return;
-        form.slug = next;
+        if (titleSlugTimer) clearTimeout(titleSlugTimer);
+        titleSlugTimer = setTimeout(() => {
+            applySuggestedPageSlug();
+        }, 400);
     },
 );
 
@@ -399,8 +445,41 @@ const wordCount = computed(() => {
 });
 
 const parentPageOptions = computed(() => {
-    return allPages.value.filter((p) => p.id !== parseInt(editId, 10));
+    const lid = form.language_id;
+    return allPages.value.filter((p) => {
+        if (p.id === parseInt(editId, 10)) return false;
+        if (lid == null) return true;
+
+        return Number(p.language_id) === Number(lid);
+    });
 });
+
+function mapLocaleToLcode(loc) {
+    if (loc === 'ru') return 'ru';
+    if (loc === 'am') return 'am';
+
+    return 'en';
+}
+
+function applyCreateLanguageFromQuery() {
+    if (isEdit || !activeLanguages.value.length) return;
+    const qp = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    translationGroupFromQuery.value = qp.get('translation_group') || '';
+    const wanted = qp.get('lang');
+    const byQuery = wanted ? activeLanguages.value.find((l) => l.lcode === wanted) : null;
+    const byLocale = activeLanguages.value.find((l) => l.lcode === mapLocaleToLcode(typeof window !== 'undefined' ? window.__locale : 'en'));
+    const pick = byQuery || byLocale || activeLanguages.value[0];
+    if (pick) {
+        form.language_id = pick.id;
+    }
+    languageLocked.value = !!(translationGroupFromQuery.value && wanted);
+}
+
+function onLanguageChange() {
+    if (!isEdit) {
+        loadPages();
+    }
+}
 
 function setCsrf() {
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -469,19 +548,27 @@ async function loadPage() {
         form.sort_order = data.sort_order ?? 0;
         form.parent_id = data.parent_id ?? null;
         form.featured_image = data.featured_image ?? '';
+        form.language_id = data.language_id ?? null;
     } catch (e) {
         saveError.value = e.response?.data?.message || t('admin.content.load_error');
     } finally {
         loading.value = false;
+        slugTitleSyncReady.value = true;
     }
 }
 
 async function loadPages() {
     setCsrf();
     try {
-        const { data } = await axios.get('/admin/content/api/pages');
+        const lang = activeLanguages.value.find((l) => Number(l.id) === Number(form.language_id));
+        const lcode = lang?.lcode || 'en';
+        const { data } = await axios.get('/admin/content/api/pages', {
+            params: { lang: lcode, flat: 1 },
+        });
         allPages.value = data;
-    } catch (_) {}
+    } catch (_) {
+        allPages.value = [];
+    }
 }
 
 async function save() {
@@ -502,6 +589,12 @@ async function save() {
             parent_id: form.parent_id || null,
             featured_image: form.featured_image?.trim() || null,
         };
+        if (!isEdit) {
+            payload.language_id = form.language_id;
+            if (translationGroupFromQuery.value) {
+                payload.translation_group_id = translationGroupFromQuery.value;
+            }
+        }
         if (isEdit) {
             await axios.put(`/admin/content/api/pages/${editId}`, payload);
         } else {
@@ -538,10 +631,24 @@ async function doTrash() {
     }
 }
 
-onMounted(() => {
+async function boot() {
     setCsrf();
-    loadPages();
-    if (isEdit) loadPage();
-});
+    try {
+        const { data } = await axios.get('/admin/settings/api/languages');
+        activeLanguages.value = (data || []).filter((l) => l.status === 'active');
+    } catch (_) {
+        activeLanguages.value = [];
+    }
+    if (isEdit) {
+        await loadPage();
+        await loadPages();
+    } else {
+        applyCreateLanguageFromQuery();
+        await loadPages();
+        loading.value = false;
+    }
+}
+
+onMounted(boot);
 </script>
 

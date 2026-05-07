@@ -8,7 +8,7 @@
                 </p>
             </div>
             <a
-                href="/admin/blog/posts/create"
+                :href="createPostHref"
                 class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
             >
                 <PlusIcon class="h-5 w-5 shrink-0" />
@@ -19,7 +19,7 @@
         <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
                 <p class="text-sm text-slate-600">
-                    {{ pagination.total }} {{ t('admin.blog_posts.count') }}
+                    {{ filteredRows.length }} {{ t('admin.blog_posts.count') }}
                 </p>
                 <div class="relative">
                     <MagnifyingGlassIcon class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -45,29 +45,47 @@
                     <th class="px-4 py-3">{{ t('admin.blog_posts.col_slug') }}</th>
                     <th class="px-4 py-3">{{ t('admin.blog_posts.col_status') }}</th>
                     <th class="px-4 py-3">{{ t('admin.blog_posts.col_created_at') }}</th>
+                    <th class="px-4 py-3">{{ t('admin.content.col_other_languages') }}</th>
                     <th class="px-4 py-3 text-right">{{ t('admin.blog_posts.action') }}</th>
                 </template>
 
                 <tr
-                    v-for="post in posts"
-                    :key="post.id"
+                    v-for="row in pagedRows"
+                    :key="row.translation_group_id || row.post?.id"
                     class="hover:bg-slate-50"
                 >
-                    <td class="px-4 py-3 font-medium text-slate-900">{{ post.title }}</td>
-                    <td class="px-4 py-3 text-slate-700 font-mono text-xs">{{ post.slug }}</td>
+                    <td class="px-4 py-3 font-medium text-slate-900">{{ row.post?.title }}</td>
+                    <td class="px-4 py-3 font-mono text-xs text-slate-700">{{ row.post?.slug }}</td>
                     <td class="px-4 py-3">
                         <span
                             class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
-                            :class="post.status === 'published' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'"
+                            :class="row.post?.status === 'published' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'"
                         >
-                            {{ post.status === 'published' ? t('admin.blog_posts.status_published') : t('admin.blog_posts.status_draft') }}
+                            {{ row.post?.status === 'published' ? t('admin.blog_posts.status_published') : t('admin.blog_posts.status_draft') }}
                         </span>
                     </td>
-                    <td class="px-4 py-3 text-slate-600">{{ formatDate(post.created_at) }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ formatDate(row.post?.created_at) }}</td>
+                    <td class="px-4 py-3">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <a
+                                v-for="item in translationActions(row)"
+                                :key="item.lcode"
+                                :href="item.href"
+                                class="inline-flex items-center gap-1 rounded-lg border bg-white px-2 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:border-[#2271b1] hover:text-[#2271b1] hover:shadow"
+                                :class="item.isCreate ? 'border-dashed border-slate-300' : 'border-slate-200'"
+                                :title="item.title"
+                            >
+                                <span class="font-mono text-[10px] uppercase tracking-wide text-slate-500">{{ item.lcode }}</span>
+                                <PlusIcon v-if="item.isCreate" class="h-4 w-4 shrink-0" />
+                                <PencilSquareIcon v-else class="h-4 w-4 shrink-0" />
+                            </a>
+                            <span v-if="translationActions(row).length === 0" class="text-xs text-slate-400">—</span>
+                        </div>
+                    </td>
                     <td class="px-4 py-3">
                         <div class="flex items-center justify-end gap-2">
                             <a
-                                :href="`/admin/blog/posts/${post.id}/edit`"
+                                :href="`/admin/blog/posts/${row.post?.id}/edit`"
                                 class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                                 :title="t('admin.blog_posts.edit')"
                             >
@@ -77,44 +95,44 @@
                                 type="button"
                                 class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600"
                                 :title="t('admin.blog_posts.delete')"
-                                @click="openDeleteModal(post)"
+                                @click="openDeleteModal(row.post)"
                             >
                                 <TrashIcon class="h-4 w-4" />
                             </button>
                         </div>
                     </td>
                 </tr>
-                <tr v-if="posts.length === 0">
-                    <td colspan="5" class="px-4 py-8 text-center text-slate-500">
+                <tr v-if="filteredRows.length === 0">
+                    <td colspan="6" class="px-4 py-8 text-center text-slate-500">
                         {{ t('admin.blog_posts.empty') }}
                     </td>
                 </tr>
             </AdminTable>
 
             <div
-                v-if="!loading && !error && pagination.last_page > 1"
+                v-if="!loading && !error && totalPages > 1"
                 class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-3"
             >
                 <p class="text-sm text-slate-600">
-                    {{ pagination.from }}–{{ pagination.to }} {{ t('admin.blog_posts.pagination_of') }} {{ pagination.total }}
+                    {{ pageFrom }}–{{ pageTo }} {{ t('admin.blog_posts.pagination_of') }} {{ filteredRows.length }}
                 </p>
                 <div class="flex items-center gap-2">
                     <button
                         type="button"
-                        :disabled="pagination.current_page <= 1"
+                        :disabled="currentPage <= 1"
                         class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50"
-                        @click="goToPage(pagination.current_page - 1)"
+                        @click="goToPage(currentPage - 1)"
                     >
                         {{ t('admin.blog_posts.prev') }}
                     </button>
                     <span class="text-sm text-slate-500">
-                        {{ pagination.current_page }} / {{ pagination.last_page }}
+                        {{ currentPage }} / {{ totalPages }}
                     </span>
                     <button
                         type="button"
-                        :disabled="pagination.current_page >= pagination.last_page"
+                        :disabled="currentPage >= totalPages"
                         class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-50"
-                        @click="goToPage(pagination.current_page + 1)"
+                        @click="goToPage(currentPage + 1)"
                     >
                         {{ t('admin.blog_posts.next') }}
                     </button>
@@ -172,7 +190,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useI18n } from '../../composables/useI18n';
 import { PlusIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
@@ -180,22 +198,57 @@ import AdminTable from '../../components/AdminTable.vue';
 
 const { t, locale } = useI18n();
 
-const posts = ref([]);
+const listLang = computed(() => {
+    if (typeof window === 'undefined') return 'en';
+    return window.__locale || 'en';
+});
+
+const languageOptions = ref([]);
+const rows = ref([]);
 const loading = ref(true);
 const error = ref('');
 const searchQuery = ref('');
 const searchDebounce = ref(null);
-const pagination = ref({
-    current_page: 1,
-    last_page: 1,
-    per_page: 15,
-    total: 0,
-    from: 0,
-    to: 0,
-});
+const currentPage = ref(1);
+const perPage = ref(15);
 const deleteModalOpen = ref(false);
 const postToDelete = ref(null);
 const deleting = ref(false);
+
+const createPostHref = computed(() => {
+    const q = new URLSearchParams({ lang: listLang.value || 'en' });
+    return `/admin/blog/posts/create?${q.toString()}`;
+});
+
+function translationActions(row) {
+    const current = listLang.value;
+    const gid = row.translation_group_id;
+    if (!gid || !languageOptions.value.length) {
+        return [];
+    }
+
+    return languageOptions.value
+        .filter((l) => l.lcode !== current)
+        .map((lang) => {
+            const label = lang.native_name || lang.name || lang.lcode;
+            const tr = (row.translations || []).find((x) => x.lcode === lang.lcode);
+            if (tr) {
+                return {
+                    lcode: lang.lcode,
+                    href: `/admin/blog/posts/${tr.post_id}/edit`,
+                    isCreate: false,
+                    title: t('admin.content.edit_translation_title').replace(':lang', label),
+                };
+            }
+
+            return {
+                lcode: lang.lcode,
+                href: `/admin/blog/posts/create?lang=${encodeURIComponent(lang.lcode)}&translation_group=${encodeURIComponent(gid)}`,
+                isCreate: true,
+                title: t('admin.content.translation_create_title').replace(':lang', label),
+            };
+        });
+}
 
 function setCsrf() {
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -218,46 +271,63 @@ function formatDate(value) {
     }
 }
 
+const filteredRows = computed(() => {
+    const q = searchQuery.value.trim().toLowerCase();
+    if (!q) return rows.value;
+    return rows.value.filter((row) => {
+        const title = (row.post?.title || '').toLowerCase();
+        const slug = (row.post?.slug || '').toLowerCase();
+        return title.includes(q) || slug.includes(q);
+    });
+});
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredRows.value.length / perPage.value)));
+
+const pagedRows = computed(() => {
+    const start = (currentPage.value - 1) * perPage.value;
+    return filteredRows.value.slice(start, start + perPage.value);
+});
+
+const pageFrom = computed(() => {
+    if (filteredRows.value.length === 0) return 0;
+    return (currentPage.value - 1) * perPage.value + 1;
+});
+
+const pageTo = computed(() => Math.min(filteredRows.value.length, currentPage.value * perPage.value));
+
 function goToPage(page) {
-    if (page < 1 || page > pagination.value.last_page) return;
-    load(page);
+    if (page < 1 || page > totalPages.value) return;
+    currentPage.value = page;
 }
 
 function onSearchInput() {
     if (searchDebounce.value) clearTimeout(searchDebounce.value);
     searchDebounce.value = setTimeout(() => {
-        load(1);
+        currentPage.value = 1;
     }, 300);
 }
 
-async function load(page = 1) {
+async function loadLanguages() {
+    setCsrf();
+    try {
+        const { data } = await axios.get('/admin/settings/api/languages');
+        languageOptions.value = (data || []).filter((l) => l.status === 'active');
+    } catch (_) {
+        languageOptions.value = [];
+    }
+}
+
+async function load() {
     setCsrf();
     loading.value = true;
     error.value = '';
-    const params = { page, per_page: pagination.value.per_page || 15 };
-    if (searchQuery.value.trim()) params.search = searchQuery.value.trim();
     try {
-        const res = await axios.get('/admin/blog/api/posts', {
-            params,
+        const { data } = await axios.get('/admin/blog/api/posts', {
+            params: { lang: listLang.value },
             headers: { Accept: 'application/json' },
-            validateStatus: () => true,
         });
-        if (res.status >= 200 && res.status < 300) {
-            const data = res.data;
-            const list = Array.isArray(data) ? data : (data?.data ?? []);
-            posts.value = Array.isArray(list) ? list : [];
-            pagination.value = {
-                current_page: data?.current_page ?? 1,
-                last_page: data?.last_page ?? 1,
-                per_page: data?.per_page ?? 15,
-                total: data?.total ?? posts.value.length,
-                from: data?.from ?? (posts.value.length ? 1 : 0),
-                to: data?.to ?? posts.value.length,
-            };
-            error.value = '';
-        } else {
-            error.value = res.data?.message || `HTTP ${res.status}`;
-        }
+        rows.value = Array.isArray(data) ? data : [];
+        currentPage.value = 1;
     } catch (e) {
         error.value = e.response?.data?.message || e.message || t('admin.blog_posts.load_error');
     } finally {
@@ -284,7 +354,7 @@ async function confirmDelete() {
     try {
         await axios.delete(`/admin/blog/api/posts/${postToDelete.value.id}`);
         closeDeleteModal();
-        await load(pagination.value.current_page);
+        await load();
     } catch (e) {
         error.value = e.response?.data?.message || t('admin.blog_posts.load_error');
     } finally {
@@ -292,6 +362,8 @@ async function confirmDelete() {
     }
 }
 
-onMounted(() => load(1));
+onMounted(async () => {
+    await loadLanguages();
+    await load();
+});
 </script>
-

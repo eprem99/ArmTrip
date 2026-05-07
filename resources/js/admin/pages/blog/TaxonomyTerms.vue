@@ -41,13 +41,13 @@
             <template v-else-if="taxonomy">
                 <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
                     <p class="text-sm text-slate-600">
-                        <span class="font-medium text-slate-800">{{ filteredTerms.length }}</span>
+                        <span class="font-medium text-slate-800">{{ filteredRows.length }}</span>
                         {{ t('admin.taxonomies.terms_count_label') }}
                         <span
-                            v-if="searchQuery.trim() && terms.length !== filteredTerms.length"
+                            v-if="searchQuery.trim() && termRows.length !== filteredRows.length"
                             class="text-slate-400"
                         >
-                            ({{ terms.length }} {{ t('admin.taxonomies.terms_total_hint') }})
+                            ({{ termRows.length }} {{ t('admin.taxonomies.terms_total_hint') }})
                         </span>
                     </p>
                     <div class="relative">
@@ -67,37 +67,51 @@
                         <th class="px-4 py-3">{{ t('admin.taxonomies.col_term_status') }}</th>
                         <th class="px-4 py-3">{{ t('admin.taxonomies.col_term_slug') }}</th>
                         <th class="px-4 py-3">{{ t('admin.taxonomies.col_term_parent') }}</th>
-                        <th class="px-4 py-3">{{ t('admin.taxonomies.col_term_description') }}</th>
                         <th class="px-4 py-3">{{ t('admin.taxonomies.col_term_created_at') }}</th>
+                        <th class="px-4 py-3">{{ t('admin.content.col_other_languages') }}</th>
                         <th class="px-4 py-3 text-right">{{ t('admin.taxonomies.action') }}</th>
                     </template>
                     <tr
-                        v-for="term in filteredTerms"
-                        :key="term.id"
+                        v-for="row in filteredRows"
+                        :key="row.translation_group_id || row.term?.id"
                         class="hover:bg-slate-50"
                     >
-                        <td class="px-4 py-3 font-medium text-slate-900">{{ term.name }}</td>
+                        <td class="px-4 py-3 font-medium text-slate-900">{{ row.term?.name }}</td>
                         <td class="px-4 py-3">
                             <span
                                 class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
-                                :class="termStatusClass(term)"
+                                :class="termStatusClass(row.term)"
                             >
-                                {{ termStatusLabel(term) }}
+                                {{ termStatusLabel(row.term) }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 font-mono text-xs text-slate-700">{{ term.slug }}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-slate-700">{{ row.term?.slug }}</td>
                         <td class="px-4 py-3 text-slate-600">
-                            <span v-if="term.parent">{{ term.parent.name }}</span>
+                            <span v-if="row.term?.parent">{{ row.term.parent.name }}</span>
                             <span v-else class="text-slate-400">—</span>
                         </td>
-                        <td class="max-w-xs px-4 py-3 text-sm text-slate-600">
-                            <span class="line-clamp-2" :title="term.description || ''">{{ termDescription(term) }}</span>
+                        <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ formatDate(row.term?.created_at) }}</td>
+                        <td class="px-4 py-3">
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <a
+                                    v-for="item in translationActions(row)"
+                                    :key="item.lcode"
+                                    :href="item.href"
+                                    class="inline-flex items-center gap-1 rounded-lg border bg-white px-2 py-1 text-xs font-medium text-slate-700 shadow-sm transition hover:border-[#2271b1] hover:text-[#2271b1] hover:shadow"
+                                    :class="item.isCreate ? 'border-dashed border-slate-300' : 'border-slate-200'"
+                                    :title="item.title"
+                                >
+                                    <span class="font-mono text-[10px] uppercase tracking-wide text-slate-500">{{ item.lcode }}</span>
+                                    <PlusIcon v-if="item.isCreate" class="h-4 w-4 shrink-0" />
+                                    <PencilSquareIcon v-else class="h-4 w-4 shrink-0" />
+                                </a>
+                                <span v-if="translationActions(row).length === 0" class="text-xs text-slate-400">—</span>
+                            </div>
                         </td>
-                        <td class="whitespace-nowrap px-4 py-3 text-slate-600">{{ formatDate(term.created_at) }}</td>
                         <td class="px-4 py-3">
                             <div class="flex items-center justify-end gap-2">
                                 <a
-                                    :href="editTermHref(term)"
+                                    :href="editTermHref(row.term)"
                                     class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                                     :title="t('admin.taxonomies.edit')"
                                 >
@@ -107,16 +121,16 @@
                                     type="button"
                                     class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600"
                                     :title="t('admin.taxonomies.delete')"
-                                    @click="openDeleteTerm(term)"
+                                    @click="openDeleteTerm(row.term)"
                                 >
                                     <TrashIcon class="h-4 w-4" />
                                 </button>
                             </div>
                         </td>
                     </tr>
-                    <tr v-if="filteredTerms.length === 0">
+                    <tr v-if="filteredRows.length === 0">
                         <td colspan="7" class="px-4 py-8 text-center text-sm text-slate-500">
-                            {{ terms.length === 0 ? t('admin.taxonomies.terms_empty') : t('admin.taxonomies.search_no_results') }}
+                            {{ termRows.length === 0 ? t('admin.taxonomies.terms_empty') : t('admin.taxonomies.search_no_results') }}
                         </td>
                     </tr>
                 </AdminTable>
@@ -174,34 +188,73 @@ import AdminTable from '../../components/AdminTable.vue';
 
 const { t } = useI18n();
 
+const listLang = computed(() => {
+    if (typeof window === 'undefined') return 'en';
+    return window.__locale || 'en';
+});
+
+const languageOptions = ref([]);
+
 const taxonomy = ref(null);
 const searchQuery = ref('');
 const loading = ref(true);
 const error = ref('');
 
-const terms = computed(() => taxonomy.value?.terms || []);
+const termRows = computed(() => taxonomy.value?.term_groups || []);
 
-const filteredTerms = computed(() => {
+const filteredRows = computed(() => {
     const q = searchQuery.value.trim().toLowerCase();
-    if (!q) return terms.value;
-    return terms.value.filter((term) => {
+    if (!q) return termRows.value;
+    return termRows.value.filter((row) => {
+        const term = row.term || {};
         const name = (term.name || '').toLowerCase();
         const slug = (term.slug || '').toLowerCase();
-        const desc = (term.description || '').toLowerCase();
         const parentName = (term.parent?.name || '').toLowerCase();
         const st = (term.status || '').toLowerCase();
-        return name.includes(q) || slug.includes(q) || desc.includes(q) || parentName.includes(q) || st.includes(q);
+        return name.includes(q) || slug.includes(q) || parentName.includes(q) || st.includes(q);
     });
 });
 
 const newTermHref = computed(() => {
     const slug = taxonomy.value?.slug || taxonomySlugFromPath();
-    return slug ? `/admin/blog/taxonomies/${encodeURIComponent(slug)}/terms/create` : '#';
+    const q = new URLSearchParams({ lang: listLang.value || 'en' });
+    return slug ? `/admin/blog/taxonomies/${encodeURIComponent(slug)}/terms/create?${q.toString()}` : '#';
 });
 
 function editTermHref(term) {
     const slug = taxonomy.value?.slug || taxonomySlugFromPath();
     return `/admin/blog/taxonomies/${encodeURIComponent(slug)}/terms/${term.id}/edit`;
+}
+
+function translationActions(row) {
+    const current = listLang.value;
+    const gid = row.translation_group_id;
+    const taxSlug = taxonomy.value?.slug || taxonomySlugFromPath();
+    if (!gid || !languageOptions.value.length || !taxSlug) {
+        return [];
+    }
+
+    return languageOptions.value
+        .filter((l) => l.lcode !== current)
+        .map((lang) => {
+            const label = lang.native_name || lang.name || lang.lcode;
+            const tr = (row.translations || []).find((x) => x.lcode === lang.lcode);
+            if (tr) {
+                return {
+                    lcode: lang.lcode,
+                    href: `/admin/blog/taxonomies/${encodeURIComponent(taxSlug)}/terms/${tr.term_id}/edit`,
+                    isCreate: false,
+                    title: t('admin.content.edit_translation_title').replace(':lang', label),
+                };
+            }
+
+            return {
+                lcode: lang.lcode,
+                href: `/admin/blog/taxonomies/${encodeURIComponent(taxSlug)}/terms/create?lang=${encodeURIComponent(lang.lcode)}&translation_group=${encodeURIComponent(gid)}`,
+                isCreate: true,
+                title: t('admin.content.translation_create_title').replace(':lang', label),
+            };
+        });
 }
 
 const deleteTermModalOpen = ref(false);
@@ -242,22 +295,26 @@ function formatDate(value) {
     }
 }
 
-function termDescription(term) {
-    const d = term.description;
-    if (!d || !String(d).trim()) return '—';
-    return String(d).trim();
-}
-
 function termStatusLabel(term) {
-    return term.status === 'draft'
+    return term?.status === 'draft'
         ? t('admin.taxonomies.term_status_draft')
         : t('admin.taxonomies.term_status_published');
 }
 
 function termStatusClass(term) {
-    return term.status === 'draft'
+    return term?.status === 'draft'
         ? 'bg-amber-100 text-amber-900'
         : 'bg-emerald-100 text-emerald-800';
+}
+
+async function loadLanguages() {
+    setCsrf();
+    try {
+        const { data } = await axios.get('/admin/settings/api/languages');
+        languageOptions.value = (data || []).filter((l) => l.status === 'active');
+    } catch (_) {
+        languageOptions.value = [];
+    }
 }
 
 async function load() {
@@ -274,7 +331,9 @@ async function load() {
     taxonomy.value = null;
 
     try {
-        const { data } = await axios.get(`/admin/blog/api/taxonomies/${encodeURIComponent(slug)}`);
+        const { data } = await axios.get(`/admin/blog/api/taxonomies/${encodeURIComponent(slug)}`, {
+            params: { lang: listLang.value },
+        });
         taxonomy.value = data;
     } catch (e) {
         if (e.response?.status === 404) {
@@ -318,7 +377,8 @@ async function confirmDeleteTerm() {
     }
 }
 
-onMounted(() => {
-    load();
+onMounted(async () => {
+    await loadLanguages();
+    await load();
 });
 </script>

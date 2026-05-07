@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Poppins:wght@400;500;600&family=Fira+Code:wght@400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: hsl(18, 72%, 55%);
+  --color-primary-foreground: hsl(0, 0%, 100%);
+  --color-primary-hover: hsl(18, 72%, 45%);
+  --color-secondary: hsl(145, 25%, 35%);
+  --color-secondary-foreground: hsl(0, 0%, 100%);
+  --color-secondary-hover: hsl(145, 25%, 45%);
+  --color-tertiary: hsl(204, 20%, 92%);
+  --color-tertiary-foreground: hsl(210, 10%, 20%);
+  --color-background: hsl(0, 0%, 100%);
+  --color-foreground: hsl(210, 10%, 15%);
+  --color-border: hsl(210, 12%, 80%);
+  --color-muted: hsl(210, 16%, 96%);
+  --color-muted-foreground: hsl(210, 9%, 50%);
+  --color-card: hsl(0, 0%, 100%);
+  --color-card-foreground: hsl(210, 10%, 15%);
+  --font-sans: 'DM Sans', 'Poppins', sans-serif;
+  --font-heading: 'Poppins', sans-serif;
+  --font-mono: 'Fira Code', monospace;
+  --border-radius: 8px;
+}
+
+html, body {
+  color: hsl(210, 10%, 15%);
+  background-color: hsl(0, 0%, 100%);
+  font-family: 'DM Sans', 'Poppins', sans-serif;
+  scroll-behavior: smooth;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.nav-link-underline {
+  position: relative;
+}
+
+.nav-link-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background-color: hsl(18, 72%, 55%);
+  transition: width 0.25s ease-in-out;
+}
+
+.nav-link-underline:hover::after,
+.nav-link-underline.active::after {
+  width: 100%;
+}
+
+.card-hover-image {
+  transition: transform 0.35s ease-in-out;
+}
+
+.card-hover-image:hover .card-img {
+  transform: scale(1.05);
+}
+
+.img-zoom-container {
+  overflow: hidden;
+}
+
+.img-zoom {
+  transition: transform 0.35s ease-in-out;
+}
+
+.img-zoom:hover {
+  transform: scale(1.05);
+}

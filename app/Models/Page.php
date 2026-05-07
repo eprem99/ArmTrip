@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Page extends Model
 {
@@ -27,6 +28,25 @@ class Page extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::deleting(function (Page $page) {
+            Translation::query()
+                ->where('type', Translation::TYPE_PAGE)
+                ->where('content_id', $page->id)
+                ->delete();
+        });
+    }
+
+    /**
+     * Translation row for this page (type=page, content_id = pages.id).
+     */
+    public function translation(): HasOne
+    {
+        return $this->hasOne(Translation::class, 'content_id')
+            ->where('type', Translation::TYPE_PAGE);
+    }
 
     public function parent(): BelongsTo
     {

@@ -29,6 +29,9 @@ import BlogPosts from '../pages/blog/BlogPosts.vue';
 import BlogPostForm from '../pages/blog/BlogPostForm.vue';
 import TaxonomyTerms from '../pages/blog/TaxonomyTerms.vue';
 import TermForm from '../pages/blog/TermForm.vue';
+import Rentals from '../pages/rentals/Rentals.vue';
+import RentalTypes from '../pages/rentals/RentalTypes.vue';
+import RentalAmenities from '../pages/rentals/RentalAmenities.vue';
 
 const sidebarCollapsed = ref(false);
 
@@ -40,6 +43,9 @@ const currentPage = computed(() => {
     if (path.startsWith('/admin/media')) return Media;
     if (path === '/admin/content/pages/create' || /^\/admin\/content\/pages\/\d+\/edit$/.test(path)) return ContentPageForm;
     if (path.startsWith('/admin/content')) return Content;
+    if (path.startsWith('/admin/rentals/amenities')) return RentalAmenities;
+    if (path.startsWith('/admin/rentals/types')) return RentalTypes;
+    if (path.startsWith('/admin/rentals')) return Rentals;
     if (path === '/admin/users/create' || /^\/admin\/users\/\d+\/edit$/.test(path)) return UserForm;
     if (path.startsWith('/admin/users')) return Users;
     if (path === '/admin/blog/posts/create' || /^\/admin\/blog\/posts\/\d+\/edit$/.test(path)) return BlogPostForm;
