@@ -11,6 +11,10 @@
     $headerClasses = $isHome
         ? ($headerBase.' bg-transparent')
         : ($headerBase.' bg-background border-b border-border backdrop-blur');
+
+    $orgName = \App\Models\Option::get('organization_name', '') ?: config('app.name');
+    $logoLight = (string) \App\Models\Option::get('organization_logo_light', '');
+    $logoDark = (string) \App\Models\Option::get('organization_logo_dark', '');
 @endphp
 
 <header id="site-header" class="{{ $headerClasses }}" data-header-mode="{{ $headerMode }}">
@@ -18,14 +22,40 @@
         <a
             href="{{ $home }}"
             class="flex items-center gap-2 select-none"
-            aria-label="{{ config('app.name') }}"
+            aria-label="{{ $orgName }}"
         >
-            <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-semibold">
-                SA
-            </span>
-            <span class="hidden sm:block font-semibold tracking-tight {{ $isHome ? 'text-white' : 'text-foreground' }}" data-header-contrast>
-                {{ config('app.name') }}
-            </span>
+            @if(filled($logoLight) || filled($logoDark))
+                <span class="inline-flex h-10 items-center">
+                    @if(filled($logoLight))
+                        <img
+                            src="{{ $logoLight }}"
+                            alt="{{ $orgName }}"
+                            class="{{ $isHome ? '' : 'hidden' }} h-10 w-auto object-contain"
+                            loading="eager"
+                            decoding="async"
+                            data-logo-light
+                        />
+                    @endif
+                    @if(filled($logoDark))
+                        <img
+                            src="{{ $logoDark }}"
+                            alt="{{ $orgName }}"
+                            class="{{ $isHome ? 'hidden' : '' }} h-10 w-auto object-contain"
+                            loading="eager"
+                            decoding="async"
+                            data-logo-dark
+                        />
+                    @endif
+                </span>
+                <span class="sr-only">{{ $orgName }}</span>
+            @else
+                <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-semibold">
+                    SA
+                </span>
+                <span class="hidden sm:block font-semibold tracking-tight {{ $isHome ? 'text-white' : 'text-foreground' }}" data-header-contrast>
+                    {{ $orgName }}
+                </span>
+            @endif
         </a>
 
         <div class="hidden lg:flex items-center gap-1" aria-label="{{ __('front.nav_main') }}">
@@ -298,6 +328,12 @@
                 el.classList.remove('text-white');
                 el.classList.add('text-foreground');
             });
+
+            // non-home pages: prefer dark logo
+            const light = header.querySelector('[data-logo-light]');
+            const dark = header.querySelector('[data-logo-dark]');
+            if (light) light.classList.add('hidden');
+            if (dark) dark.classList.remove('hidden');
             return;
         }
         const scrolled = window.scrollY > 60;
@@ -311,6 +347,14 @@
             el.classList.toggle('text-white', !scrolled);
             el.classList.toggle('text-foreground', scrolled);
         });
+
+        // home page: light logo over hero, dark logo when scrolled
+        const light = header.querySelector('[data-logo-light]');
+        const dark = header.querySelector('[data-logo-dark]');
+        if (light && dark) {
+            light.classList.toggle('hidden', scrolled);
+            dark.classList.toggle('hidden', !scrolled);
+        }
     };
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });

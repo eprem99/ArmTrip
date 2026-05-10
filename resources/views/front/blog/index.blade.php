@@ -5,17 +5,11 @@
     /** @var \Illuminate\Support\Collection<int, \App\Models\Term> $locations */
     /** @var \Illuminate\Support\Collection<int, \App\Models\Term> $durations */
 @endphp
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>{{ __('Blog') }} — {{ config('app.name') }}</title>
-        @vite(['resources/css/app.css', 'resources/js/frontend/app.js'])
-    </head>
-    <body class="min-h-screen bg-background text-foreground font-sans">
-        @include('front.partials.nav')
+@extends('front.layouts.app')
 
+@section('title', __('Blog').' — '.config('app.name'))
+
+@section('content')
         {{-- Hero --}}
         <section class="relative flex items-center justify-center overflow-hidden" style="min-height: 420px;" aria-label="Blog hero">
             <img
@@ -231,8 +225,5 @@
                 </aside>
             </div>
         </main>
-
-        @include('front.partials.footer')
-    </body>
-</html>
+@endsection
 

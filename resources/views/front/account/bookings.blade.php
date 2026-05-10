@@ -1,16 +1,11 @@
 @php
     /** @var \App\Models\User $user */
 @endphp
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>{{ __('front.nav_my_bookings') }} — {{ config('app.name') }}</title>
-        @vite(['resources/css/app.css', 'resources/js/frontend/app.js'])
-    </head>
-    <body class="min-h-screen bg-background text-foreground font-sans">
-        @include('front.partials.nav')
+@extends('front.layouts.app')
+
+@section('title', __('front.nav_my_bookings').' — '.config('app.name'))
+
+@section('content')
         <main class="pt-20">
             <section class="px-6 sm:px-8 py-10">
                 <div class="max-w-5xl mx-auto">
@@ -22,7 +17,5 @@
                 </div>
             </section>
         </main>
-        @include('front.partials.footer')
-    </body>
-</html>
+@endsection
 

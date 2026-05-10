@@ -10,12 +10,14 @@ use App\Http\Controllers\Admin\RentalAmenitiesController;
 use App\Http\Controllers\Admin\RentalsController;
 use App\Http\Controllers\Admin\RentalTypesController;
 use App\Http\Controllers\Admin\UsersController;
+use App\Http\Controllers\Admin\SubscribersController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Front\AccountController;
 use App\Http\Controllers\Frontend\PostController;
 use App\Http\Controllers\Front\PageController;
 use App\Http\Controllers\Front\RentalSeoController;
 use App\Http\Controllers\Front\RentalsListController;
+use App\Http\Controllers\Front\SubscribeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/locale/{locale}', function (string $locale) {
@@ -28,7 +30,11 @@ Route::get('/locale/{locale}', function (string $locale) {
     return redirect()->back();
 })->name('locale.switch');
 
+Route::view('/coming-soon', 'front.coming-soon')->name('front.coming_soon');
+Route::view('/maintenance', 'front.maintenance')->name('front.maintenance');
+
 Route::get('/', [PageController::class, 'home'])->name('front.home');
+Route::post('/subscribe', [SubscribeController::class, 'store'])->name('front.subscribe');
 
 Route::get('/rentals', [RentalsListController::class, 'index'])->name('front.rentals.index');
 
@@ -147,10 +153,20 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/settings/taxonomies', function () {
         return view('admin');
     })->name('settings.taxonomies');
+    Route::get('/settings/smtp', function () {
+        return view('admin');
+    })->name('settings.smtp');
+    Route::get('/settings/footer', function () {
+        return view('admin');
+    })->name('settings.footer');
     Route::get('/settings/api/organization', [SettingsController::class, 'organization']);
     Route::post('/settings/api/organization', [SettingsController::class, 'saveOrganization']);
     Route::get('/settings/api/global', [SettingsController::class, 'global']);
     Route::post('/settings/api/global', [SettingsController::class, 'saveGlobal']);
+    Route::get('/settings/api/smtp', [SettingsController::class, 'smtp']);
+    Route::post('/settings/api/smtp', [SettingsController::class, 'saveSmtp']);
+    Route::get('/settings/api/footer', [SettingsController::class, 'footer']);
+    Route::post('/settings/api/footer', [SettingsController::class, 'saveFooter']);
     Route::get('/settings/api/languages', [SettingsController::class, 'languages']);
     Route::post('/settings/api/languages', [SettingsController::class, 'storeLanguage']);
     Route::get('/settings/api/languages/{language}', [SettingsController::class, 'getLanguage']);
@@ -210,5 +226,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/users/api/{user}', [UsersController::class, 'show'])->name('users.api.show')->whereNumber('user');
     Route::put('/users/api/{user}', [UsersController::class, 'update'])->name('users.api.update')->whereNumber('user');
     Route::delete('/users/api/{user}', [UsersController::class, 'destroy'])->name('users.api.destroy')->whereNumber('user');
+
+    Route::get('/subscribers', function () {
+        return view('admin');
+    })->name('subscribers');
+    Route::get('/subscribers/api', [SubscribersController::class, 'index'])->name('subscribers.api');
+    Route::delete('/subscribers/api/{subscriber}', [SubscribersController::class, 'destroy'])
+        ->name('subscribers.api.destroy')
+        ->whereNumber('subscriber');
 
 });

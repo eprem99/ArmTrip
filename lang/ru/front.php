@@ -49,4 +49,7 @@ return [
     'deploy_now' => 'Развернуть',
     'lets_get_started' => 'Начнём',
     'suggest_start' => 'У Laravel богатая экосистема. Рекомендуем начать с этого.',
+
+    'newsletter_subscribed' => 'Спасибо! Вы подписаны.',
+    'newsletter_submit_error' => 'Не удалось оформить подписку. Попробуйте ещё раз.',
 ];

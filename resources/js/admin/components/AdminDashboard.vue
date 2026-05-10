@@ -25,6 +25,7 @@ import Content from '../pages/content/Content.vue';
 import ContentPageForm from '../pages/content/ContentPageForm.vue';
 import Users from '../pages/users/Users.vue';
 import UserForm from '../pages/users/UserForm.vue';
+import Subscribers from '../pages/subscribers/Subscribers.vue';
 import BlogPosts from '../pages/blog/BlogPosts.vue';
 import BlogPostForm from '../pages/blog/BlogPostForm.vue';
 import TaxonomyTerms from '../pages/blog/TaxonomyTerms.vue';
@@ -46,6 +47,7 @@ const currentPage = computed(() => {
     if (path.startsWith('/admin/rentals/amenities')) return RentalAmenities;
     if (path.startsWith('/admin/rentals/types')) return RentalTypes;
     if (path.startsWith('/admin/rentals')) return Rentals;
+    if (path.startsWith('/admin/subscribers')) return Subscribers;
     if (path === '/admin/users/create' || /^\/admin\/users\/\d+\/edit$/.test(path)) return UserForm;
     if (path.startsWith('/admin/users')) return Users;
     if (path === '/admin/blog/posts/create' || /^\/admin\/blog\/posts\/\d+\/edit$/.test(path)) return BlogPostForm;

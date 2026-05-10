@@ -210,6 +210,20 @@
                 </div>
             </template>
             <a
+                href="/admin/subscribers"
+                :class="[
+                    'flex items-center rounded-xl py-2.5 text-sm font-medium transition-colors',
+                    collapsed ? 'justify-center px-2' : 'gap-3 px-3',
+                    isSubscribers
+                        ? 'bg-blue-500/20 text-blue-300'
+                        : 'text-slate-300 hover:bg-slate-700/50 hover:text-white',
+                ]"
+                :title="t('admin.sidebar.subscribers')"
+            >
+                <UserGroupIcon class="h-5 w-5 shrink-0" />
+                <span v-show="!collapsed" class="truncate">{{ t('admin.sidebar.subscribers') }}</span>
+            </a>
+            <a
                 href="/admin/users"
                 :class="[
                     'flex items-center rounded-xl py-2.5 text-sm font-medium transition-colors',
@@ -279,6 +293,7 @@ import {
     DocumentTextIcon,
     BuildingOffice2Icon,
     NewspaperIcon,
+    UserGroupIcon,
     UsersIcon,
     Cog6ToothIcon,
     ChevronLeftIcon,
@@ -336,6 +351,11 @@ const isRentalsAmenities = computed(() => {
 const isUsers = computed(() => {
     if (typeof window === 'undefined') return false;
     return window.location.pathname.startsWith('/admin/users');
+});
+
+const isSubscribers = computed(() => {
+    if (typeof window === 'undefined') return false;
+    return window.location.pathname.startsWith('/admin/subscribers');
 });
 
 const isBlog = computed(() => {

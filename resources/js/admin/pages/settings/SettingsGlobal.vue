@@ -134,15 +134,15 @@
             <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h2 class="text-sm font-semibold text-slate-900">{{ t('settings.caching') }}</h2>
 
-                <div class="mt-4 space-y-4">
-                    <div>
+                <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div class="sm:col-span-1">
                         <label for="cache_store" class="block text-sm font-medium text-slate-700">
                             {{ t('settings.cache_store') }}
                         </label>
                         <select
                             id="cache_store"
                             v-model="form.cache_store"
-                            class="mt-1 block w-full max-w-md rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            class="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         >
                             <option v-for="s in cacheStores" :key="s" :value="s">
                                 {{ s }}
@@ -151,7 +151,7 @@
                         <p class="mt-1 text-xs text-slate-500">{{ t('settings.cache_store_hint') }}</p>
                     </div>
 
-                    <div>
+                    <div class="sm:col-span-1">
                         <label for="cache_prefix" class="block text-sm font-medium text-slate-700">
                             {{ t('settings.cache_prefix') }}
                         </label>
@@ -159,11 +159,11 @@
                             id="cache_prefix"
                             v-model="form.cache_prefix"
                             type="text"
-                            class="mt-1 block w-full max-w-md rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            class="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
                     </div>
 
-                    <div v-if="form.cache_store === 'redis'" class="grid gap-4 sm:grid-cols-2">
+                    <div v-if="form.cache_store === 'redis'" class="grid gap-4 sm:col-span-2 sm:grid-cols-2">
                         <div>
                             <label for="redis_host" class="block text-sm font-medium text-slate-700">
                                 {{ t('settings.redis_host') }}
@@ -227,6 +227,80 @@
                 </div>
             </div>
 
+            <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 class="text-sm font-semibold text-slate-900">{{ t('settings.site_modes') }}</h2>
+
+                <div class="mt-4 space-y-5">
+                    <div class="flex items-start justify-between gap-6">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-slate-700">{{ t('settings.coming_soon_toggle') }}</p>
+                            <p class="mt-0.5 text-xs text-slate-500">{{ t('settings.coming_soon_hint') }}</p>
+                        </div>
+                        <label class="relative mt-1 inline-flex cursor-pointer items-center">
+                            <input v-model="form.site_coming_soon_enabled" type="checkbox" class="peer sr-only" />
+                            <div
+                                class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-focus:outline-none"
+                            />
+                        </label>
+                    </div>
+
+                    <div v-if="form.site_coming_soon_enabled" class="grid gap-4 sm:grid-cols-2">
+                        <div class="sm:col-span-1">
+                            <label for="coming_soon_title" class="block text-sm font-medium text-slate-700">
+                                {{ t('settings.coming_soon_title') }}
+                            </label>
+                            <input
+                                id="coming_soon_title"
+                                v-model="form.site_coming_soon_title"
+                                type="text"
+                                class="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                :placeholder="t('settings.coming_soon_title_placeholder')"
+                            />
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label for="coming_soon_message" class="block text-sm font-medium text-slate-700">
+                                {{ t('settings.coming_soon_message') }}
+                            </label>
+                            <textarea
+                                id="coming_soon_message"
+                                v-model="form.site_coming_soon_message"
+                                rows="3"
+                                class="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                :placeholder="t('settings.coming_soon_message_placeholder')"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="h-px bg-slate-100" />
+
+                    <div class="flex items-start justify-between gap-6">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-slate-700">{{ t('settings.maintenance_toggle') }}</p>
+                            <p class="mt-0.5 text-xs text-slate-500">{{ t('settings.maintenance_hint') }}</p>
+                        </div>
+                        <label class="relative mt-1 inline-flex cursor-pointer items-center">
+                            <input v-model="form.site_maintenance_enabled" type="checkbox" class="peer sr-only" />
+                            <div
+                                class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-focus:outline-none"
+                            />
+                        </label>
+                    </div>
+
+                    <div v-if="form.site_maintenance_enabled">
+                        <label for="maintenance_message" class="block text-sm font-medium text-slate-700">
+                            {{ t('settings.maintenance_message') }}
+                        </label>
+                        <textarea
+                            id="maintenance_message"
+                            v-model="form.site_maintenance_message"
+                            rows="3"
+                            class="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            :placeholder="t('settings.maintenance_message_placeholder')"
+                        />
+                    </div>
+                </div>
+            </div>
+
             <div class="flex items-center gap-3">
                 <button
                     type="submit"
@@ -269,6 +343,11 @@ const form = reactive({
     redis_password: '',
     redis_db: '0',
     redis_cache_db: '1',
+    site_coming_soon_enabled: false,
+    site_coming_soon_title: '',
+    site_coming_soon_message: '',
+    site_maintenance_enabled: false,
+    site_maintenance_message: '',
 });
 
 const saving = ref(false);

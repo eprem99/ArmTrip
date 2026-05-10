@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\SetLocale;
 use App\Http\Middleware\AdminOnly;
+use App\Http\Middleware\SiteModeMiddleware;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Application;
@@ -31,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             SetLocale::class,
+            SiteModeMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

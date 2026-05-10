@@ -1,15 +1,9 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ __('front.rentals_meta_title') }} — {{ config('app.name') }}</title>
-    <meta name="description" content="{{ __('front.rentals_meta_description') }}">
-    @vite(['resources/css/app.css', 'resources/js/frontend/app.js'])
-</head>
-<body class="min-h-screen bg-background text-foreground font-sans">
-    @include('front.partials.nav')
+@extends('front.layouts.app')
 
+@section('title', __('front.rentals_meta_title').' — '.config('app.name'))
+@section('meta_description', __('front.rentals_meta_description'))
+
+@section('content')
     @php
         $q = (string) request()->query('q', '');
         $type = (string) request()->query('type', '');
@@ -738,6 +732,4 @@
 })();
     </script>
 
-    @include('front.partials.footer')
-</body>
-</html>
+@endsection

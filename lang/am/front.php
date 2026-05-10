@@ -49,4 +49,7 @@ return [
     'deploy_now' => 'Բացել',
     'lets_get_started' => 'Սկսենք',
     'suggest_start' => 'Laravel-ն ունի հարուստ էկոհամակարգ։ Խորհուրդ ենք տալիս սկսել այստեղից։',
+
+    'newsletter_subscribed' => 'Շնորհակալություն։ Դուք բաժանորդագրված եք։',
+    'newsletter_submit_error' => 'Չհաջողվեց բաժանորդագրվել։ Կրկին փորձեք։',
 ];

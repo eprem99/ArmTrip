@@ -16,16 +16,29 @@ class SettingsController extends Controller
      */
     protected array $organizationKeys = [
         'organization_name',
+        'organization_description',
         'organization_logo_light',
         'organization_logo_dark',
+        'organization_favicon',
         'organization_email',
         'organization_phone',
+        'organization_address',
         'timezone',
         'date_format',
     ];
 
     protected array $globalKeys = [
         'media_storage_disk',
+        'site_coming_soon_enabled',
+        'site_coming_soon_title',
+        'site_coming_soon_message',
+        'site_maintenance_enabled',
+        'site_maintenance_message',
+    ];
+
+    protected array $footerKeys = [
+        'footer_copyright',
+        'footer_social_links',
     ];
 
     /**
@@ -48,10 +61,13 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'organization_name' => ['nullable', 'string', 'max:255'],
+            'organization_description' => ['nullable', 'string', 'max:1000'],
             'organization_logo_light' => ['nullable', 'string', 'max:500'],
             'organization_logo_dark' => ['nullable', 'string', 'max:500'],
+            'organization_favicon' => ['nullable', 'string', 'max:500'],
             'organization_email' => ['nullable', 'email', 'max:255'],
             'organization_phone' => ['nullable', 'string', 'max:50'],
+            'organization_address' => ['nullable', 'string', 'max:255'],
             'timezone' => ['nullable', 'string', 'max:50'],
             'date_format' => ['nullable', 'string', 'max:50'],
         ]);
@@ -95,6 +111,15 @@ class SettingsController extends Controller
         $values['redis_db'] = (string) env('REDIS_DB', '0');
         $values['redis_cache_db'] = (string) env('REDIS_CACHE_DB', '1');
 
+        $values['mail_mailer'] = (string) env('MAIL_MAILER', 'log');
+        $values['mail_host'] = (string) env('MAIL_HOST', '');
+        $values['mail_port'] = (string) env('MAIL_PORT', '');
+        $values['mail_username'] = (string) (env('MAIL_USERNAME') ?? '');
+        $values['mail_password'] = (string) (env('MAIL_PASSWORD') ?? '');
+        $values['mail_scheme'] = (string) (env('MAIL_SCHEME') ?? '');
+        $values['mail_from_address'] = (string) env('MAIL_FROM_ADDRESS', '');
+        $values['mail_from_name'] = (string) env('MAIL_FROM_NAME', '');
+
         return response()->json([
             'disks' => $disks,
             'cache_stores' => $cacheStores,
@@ -121,6 +146,11 @@ class SettingsController extends Controller
             'redis_password' => ['nullable', 'string', 'max:200'],
             'redis_db' => ['nullable', 'string', 'max:20'],
             'redis_cache_db' => ['nullable', 'string', 'max:20'],
+            'site_coming_soon_enabled' => ['nullable', 'boolean'],
+            'site_coming_soon_title' => ['nullable', 'string', 'max:200'],
+            'site_coming_soon_message' => ['nullable', 'string', 'max:2000'],
+            'site_maintenance_enabled' => ['nullable', 'boolean'],
+            'site_maintenance_message' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $allowedDisks = array_keys(config('filesystems.disks', []));
@@ -155,6 +185,13 @@ class SettingsController extends Controller
             $this->setEnvValue('REDIS_CACHE_DB', (string) ($validated['redis_cache_db'] ?? '1'));
         }
 
+        Option::set('site_coming_soon_enabled', ! empty($validated['site_coming_soon_enabled']) ? '1' : '0');
+        Option::set('site_coming_soon_title', (string) ($validated['site_coming_soon_title'] ?? ''));
+        Option::set('site_coming_soon_message', (string) ($validated['site_coming_soon_message'] ?? ''));
+
+        Option::set('site_maintenance_enabled', ! empty($validated['site_maintenance_enabled']) ? '1' : '0');
+        Option::set('site_maintenance_message', (string) ($validated['site_maintenance_message'] ?? ''));
+
         if ($validated['media_storage_disk'] === 's3') {
             $this->setEnvValue('AWS_ACCESS_KEY_ID', $validated['aws_access_key_id'] ?? '');
             $this->setEnvValue('AWS_SECRET_ACCESS_KEY', $validated['aws_secret_access_key'] ?? '');
@@ -164,6 +201,90 @@ class SettingsController extends Controller
             $this->setEnvValue('AWS_ENDPOINT', $validated['aws_endpoint'] ?? '');
             $this->setEnvValue('AWS_USE_PATH_STYLE_ENDPOINT', ! empty($validated['aws_use_path_style_endpoint']) ? 'true' : 'false');
         }
+
+        return response()->json(['success' => true]);
+    }
+
+    public function smtp(): JsonResponse
+    {
+        return response()->json([
+            'mail_mailer' => (string) env('MAIL_MAILER', 'log'),
+            'mail_host' => (string) env('MAIL_HOST', ''),
+            'mail_port' => (string) env('MAIL_PORT', ''),
+            'mail_username' => (string) (env('MAIL_USERNAME') ?? ''),
+            'mail_password' => (string) (env('MAIL_PASSWORD') ?? ''),
+            'mail_scheme' => (string) (env('MAIL_SCHEME') ?? ''),
+            'mail_from_address' => (string) env('MAIL_FROM_ADDRESS', ''),
+            'mail_from_name' => (string) env('MAIL_FROM_NAME', ''),
+        ]);
+    }
+
+    public function saveSmtp(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'mail_mailer' => ['nullable', 'string', 'max:50'],
+            'mail_host' => ['nullable', 'string', 'max:255'],
+            'mail_port' => ['nullable', 'string', 'max:10'],
+            'mail_username' => ['nullable', 'string', 'max:255'],
+            'mail_password' => ['nullable', 'string', 'max:255'],
+            'mail_scheme' => ['nullable', 'string', 'max:50'],
+            'mail_from_address' => ['nullable', 'string', 'max:255'],
+            'mail_from_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $mailer = (string) ($validated['mail_mailer'] ?? env('MAIL_MAILER', 'log'));
+        $this->setEnvValue('MAIL_MAILER', $mailer);
+        $this->setEnvValue('MAIL_HOST', (string) ($validated['mail_host'] ?? ''));
+        $this->setEnvValue('MAIL_PORT', (string) ($validated['mail_port'] ?? ''));
+        $this->setEnvValue('MAIL_USERNAME', (string) ($validated['mail_username'] ?? ''));
+        $this->setEnvValue('MAIL_PASSWORD', (string) ($validated['mail_password'] ?? ''));
+        $this->setEnvValue('MAIL_SCHEME', (string) ($validated['mail_scheme'] ?? ''));
+        $this->setEnvValue('MAIL_FROM_ADDRESS', (string) ($validated['mail_from_address'] ?? ''));
+        $this->setEnvValue('MAIL_FROM_NAME', (string) ($validated['mail_from_name'] ?? ''));
+
+        config([
+            'mail.default' => $mailer,
+            'mail.mailers.smtp.host' => (string) ($validated['mail_host'] ?? ''),
+            'mail.mailers.smtp.port' => (int) ((string) ($validated['mail_port'] ?? '0')),
+            'mail.mailers.smtp.username' => (string) ($validated['mail_username'] ?? ''),
+            'mail.mailers.smtp.password' => (string) ($validated['mail_password'] ?? ''),
+            'mail.mailers.smtp.scheme' => (string) ($validated['mail_scheme'] ?? ''),
+            'mail.from.address' => (string) ($validated['mail_from_address'] ?? ''),
+            'mail.from.name' => (string) ($validated['mail_from_name'] ?? ''),
+        ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function footer(): JsonResponse
+    {
+        $out = [];
+        foreach ($this->footerKeys as $key) {
+            $out[$key] = Option::get($key, '');
+        }
+
+        $links = $out['footer_social_links'] ?? '';
+        if (is_string($links) && $links !== '') {
+            $decoded = json_decode($links, true);
+            $out['footer_social_links'] = is_array($decoded) ? $decoded : [];
+        } elseif (! is_array($links)) {
+            $out['footer_social_links'] = [];
+        }
+
+        return response()->json($out);
+    }
+
+    public function saveFooter(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'footer_copyright' => ['nullable', 'string', 'max:255'],
+            'footer_social_links' => ['nullable', 'array'],
+            'footer_social_links.*.label' => ['nullable', 'string', 'max:50'],
+            'footer_social_links.*.url' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        Option::set('footer_copyright', (string) ($validated['footer_copyright'] ?? ''));
+        Option::set('footer_social_links', $validated['footer_social_links'] ?? []);
 
         return response()->json(['success' => true]);
     }

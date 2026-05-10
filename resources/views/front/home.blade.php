@@ -1,17 +1,12 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>{{ $page?->title ?? config('app.name') }}</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-        @vite(['resources/css/app.css', 'resources/js/frontend/app.js'])
-    </head>
-    <body class="min-h-screen bg-background text-foreground font-sans">
-        @include('front.partials.nav')
+@extends('front.layouts.app')
 
+@push('head')
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+@endpush
+
+@section('content')
         <main>
             <!-- Hero -->
             <section id="hero" class="relative w-full h-screen min-h-[600px] flex flex-col items-center justify-center overflow-hidden">
@@ -494,33 +489,133 @@
                         Subscribe for travel tips, destination guides, and exclusive Armenia travel news.
                     </p>
 
-                    <form class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto" aria-label="Newsletter signup form">
+                    <form
+                        id="newsletter-form"
+                        class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto"
+                        aria-label="Newsletter signup form"
+                        method="POST"
+                        action="{{ route('front.subscribe') }}"
+                        data-success-msg="{{ __('front.newsletter_subscribed') }}"
+                        data-error-msg="{{ __('front.newsletter_submit_error') }}"
+                    >
+                        @csrf
+                        <input type="hidden" name="source" value="home_newsletter" />
                         <div class="flex-1">
                             <label for="newsletter-email" class="sr-only">Email address</label>
                             <input
                                 id="newsletter-email"
+                                name="email"
                                 type="email"
                                 placeholder="Enter your email address"
                                 required
+                                autocomplete="email"
                                 class="w-full px-4 py-3 rounded-lg bg-white/20 border border-white/30 text-white placeholder:text-white/60 text-sm outline-none focus:border-white/60 transition-colors"
                             />
                         </div>
                         <button
                             type="submit"
-                            class="bg-primary text-primary-foreground hover:bg-primary-hover font-normal text-sm px-6 py-3 rounded-lg transition"
+                            class="bg-primary text-primary-foreground hover:bg-primary-hover font-normal text-sm px-6 py-3 rounded-lg transition disabled:opacity-60"
                         >
                             Subscribe
                         </button>
                     </form>
+
+                    <div
+                        id="newsletter-feedback"
+                        class="mt-4 min-h-[1.25rem] text-sm font-medium"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        @if(session('subscribed'))
+                            <p class="text-white/90">{{ __('front.newsletter_subscribed') }}</p>
+                        @elseif($errors->has('email'))
+                            <p class="text-red-200">{{ $errors->first('email') }}</p>
+                        @endif
+                    </div>
 
                     <p class="text-white/50 text-xs mt-4">
                         No spam, ever. Unsubscribe at any time.
                     </p>
                 </div>
             </section>
-
-            @include('front.partials.footer')
         </main>
-    </body>
-</html>
+@endsection
+
+@push('scripts')
+    <script>
+        (function () {
+            var form = document.getElementById('newsletter-form');
+            if (!form) return;
+            var feedback = document.getElementById('newsletter-feedback');
+            var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                var btn = form.querySelector('[type="submit"]');
+                var emailInput = form.querySelector('[name="email"]');
+                var token = csrfMeta ? csrfMeta.getAttribute('content') : '';
+                var successMsg = form.getAttribute('data-success-msg') || '';
+                var errorMsg = form.getAttribute('data-error-msg') || '';
+
+                feedback.innerHTML = '';
+                btn.disabled = true;
+                btn.setAttribute('aria-busy', 'true');
+
+                var sourceInput = form.querySelector('[name="source"]');
+
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({
+                        email: emailInput.value,
+                        source: sourceInput ? sourceInput.value : 'home_newsletter',
+                    }),
+                })
+                    .then(function (res) {
+                        return res.text().then(function (text) {
+                            var data = {};
+                            try {
+                                data = text ? JSON.parse(text) : {};
+                            } catch (err) {}
+                            return { res: res, data: data };
+                        });
+                    })
+                    .then(function (_ref) {
+                        var res = _ref.res;
+                        var data = _ref.data;
+                        var p = document.createElement('p');
+                        if (res.ok) {
+                            p.className = 'text-white/90';
+                            p.textContent = data.message || successMsg;
+                            feedback.appendChild(p);
+                            emailInput.value = '';
+                        } else if (res.status === 422 && data.errors && data.errors.email && data.errors.email[0]) {
+                            p.className = 'text-red-200';
+                            p.textContent = data.errors.email[0];
+                            feedback.appendChild(p);
+                        } else {
+                            p.className = 'text-red-200';
+                            p.textContent = data.message || errorMsg;
+                            feedback.appendChild(p);
+                        }
+                    })
+                    .catch(function () {
+                        var p = document.createElement('p');
+                        p.className = 'text-red-200';
+                        p.textContent = errorMsg;
+                        feedback.appendChild(p);
+                    })
+                    .finally(function () {
+                        btn.disabled = false;
+                        btn.removeAttribute('aria-busy');
+                    });
+            });
+        })();
+    </script>
+@endpush
 

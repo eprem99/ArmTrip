@@ -22,17 +22,11 @@
     $locationTerm = $post->terms->first(fn ($t) => in_array($t->taxonomy?->slug, ['location', 'locations'], true));
 @endphp
 
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>{{ $post->title }} — {{ config('app.name') }}</title>
-        @vite(['resources/css/app.css', 'resources/js/frontend/app.js'])
-    </head>
-    <body class="min-h-screen bg-background text-foreground font-sans">
-        @include('front.partials.nav')
+@extends('front.layouts.app')
 
+@section('title', $post->title.' — '.config('app.name'))
+
+@section('content')
         {{-- Post Hero --}}
         <section class="relative overflow-hidden" style="min-height: 520px;" aria-label="Post hero">
             <img src="{{ $featuredImage }}" alt="{{ $post->title }}" class="absolute inset-0 w-full h-full object-cover" />
@@ -177,9 +171,9 @@
                 </section>
             @endif
         </main>
+@endsection
 
-        @include('front.partials.footer')
-
+@push('scripts')
         <script>
         (() => {
             const copyBtn = document.querySelector('[data-copy-link]');
@@ -222,6 +216,5 @@
             }
         })();
         </script>
-    </body>
-</html>
+@endpush
 

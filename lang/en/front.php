@@ -49,4 +49,7 @@ return [
     'deploy_now' => 'Deploy now',
     'lets_get_started' => "Let's get started",
     'suggest_start' => 'Laravel has an incredibly rich ecosystem. We suggest starting with the following.',
+
+    'newsletter_subscribed' => "Thank you! You're now subscribed.",
+    'newsletter_submit_error' => 'Could not subscribe. Please try again.',
 ];

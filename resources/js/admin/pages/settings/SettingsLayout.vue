@@ -31,6 +31,30 @@
                     <span>{{ t('settings.global') }}</span>
                 </a>
                 <a
+                    href="/admin/settings/smtp"
+                    :class="[
+                        'flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                        isSmtp
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                    ]"
+                >
+                    <EnvelopeIcon class="h-5 w-5 shrink-0" />
+                    <span>{{ t('settings.smtp') }}</span>
+                </a>
+                <a
+                    href="/admin/settings/footer"
+                    :class="[
+                        'flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                        isFooter
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                    ]"
+                >
+                    <Squares2X2Icon class="h-5 w-5 shrink-0" />
+                    <span>{{ t('settings.footer') }}</span>
+                </a>
+                <a
                     href="/admin/settings/languages"
                     :class="[
                         'flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
@@ -61,6 +85,8 @@
             <div class="min-w-0 flex-1">
             <SettingsOrganization v-if="isOrganization" />
             <SettingsGlobal v-else-if="isGlobal" />
+            <SettingsSmtp v-else-if="isSmtp" />
+            <SettingsFooter v-else-if="isFooter" />
             <SettingsLanguages v-else-if="isLanguagesList" />
             <SettingsLanguageForm v-else-if="isLanguagesCreate || isLanguagesEdit" />
             <TaxonomyForm v-else-if="isTaxonomiesCreate || isTaxonomiesEdit" />
@@ -72,9 +98,11 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from '../../composables/useI18n';
-import { BuildingOffice2Icon, Cog6ToothIcon, LanguageIcon, RectangleStackIcon } from '@heroicons/vue/24/outline';
+import { BuildingOffice2Icon, Cog6ToothIcon, EnvelopeIcon, LanguageIcon, RectangleStackIcon, Squares2X2Icon } from '@heroicons/vue/24/outline';
 import SettingsOrganization from './SettingsOrganization.vue';
 import SettingsGlobal from './SettingsGlobal.vue';
+import SettingsSmtp from './SettingsSmtp.vue';
+import SettingsFooter from './SettingsFooter.vue';
 import SettingsLanguages from './SettingsLanguages.vue';
 import SettingsLanguageForm from './SettingsLanguageForm.vue';
 import Taxonomies from './Taxonomies.vue';
@@ -93,6 +121,16 @@ const isOrganization = computed(() => {
 const isGlobal = computed(() => {
     if (typeof window === 'undefined') return false;
     return window.location.pathname === '/admin/settings/global';
+});
+
+const isSmtp = computed(() => {
+    if (typeof window === 'undefined') return false;
+    return window.location.pathname === '/admin/settings/smtp';
+});
+
+const isFooter = computed(() => {
+    if (typeof window === 'undefined') return false;
+    return window.location.pathname === '/admin/settings/footer';
 });
 
 const isLanguagesList = computed(() => {
