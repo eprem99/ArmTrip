@@ -12,7 +12,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('taxonomy_id')->constrained('taxonomies')->cascadeOnDelete();
             $table->string('name');
-            $table->string('slug');
+            // Keep unique(taxonomy_id, slug) under InnoDB 767-byte index limit with utf8mb4.
+            $table->string('slug', 180);
             $table->foreignId('parent_id')->nullable()->constrained('terms')->cascadeOnDelete();
             $table->text('description')->nullable();
             $table->timestamps();

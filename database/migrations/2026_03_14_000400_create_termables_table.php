@@ -12,7 +12,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('term_id')->constrained('terms')->cascadeOnDelete();
             $table->unsignedBigInteger('termable_id');
-            $table->string('termable_type');
+            // Morph class names fit here; shorter length keeps index(termable_type, termable_id) under 767 bytes (utf8mb4).
+            $table->string('termable_type', 160);
             $table->timestamps();
 
             $table->index(['termable_type', 'termable_id'], 'termables_termable_index');

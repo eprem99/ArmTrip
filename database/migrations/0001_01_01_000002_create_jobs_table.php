@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('jobs', function (Blueprint $table) {
             $table->id();
-            $table->string('queue');
+            // Queue names are short; limit avoids index(queue, reserved_at, available_at) exceeding 767 bytes with utf8mb4.
+            $table->string('queue', 125);
             $table->longText('payload');
             $table->unsignedTinyInteger('attempts');
             $table->unsignedInteger('reserved_at')->nullable();
