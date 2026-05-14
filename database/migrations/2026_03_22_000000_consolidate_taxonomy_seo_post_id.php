@@ -17,7 +17,9 @@ return new class extends Migration
             return;
         }
 
-        if (! Schema::hasColumn('seo_content', 'taxonomy_id')) {
+        // Avoid Schema::hasColumn on old MySQL/MariaDB: Laravel's column introspection
+        // selects generation_expression, which does not exist on some server versions.
+        if (! $this->schemaColumnExists('seo_content', 'taxonomy_id')) {
             return;
         }
 
@@ -70,5 +72,22 @@ return new class extends Migration
     public function down(): void
     {
         // Not reversible.
+    }
+
+    private function schemaColumnExists(string $table, string $column): bool
+    {
+        $connection = Schema::getConnection();
+
+        if ($connection->getDriverName() !== 'mysql') {
+            return Schema::hasColumn($table, $column);
+        }
+
+        $database = $connection->getDatabaseName();
+        $tableName = $connection->getTablePrefix().$table;
+
+        return DB::selectOne(
+            'select 1 as `exists` from information_schema.columns where table_schema = ? and table_name = ? and column_name = ? limit 1',
+            [$database, $tableName, $column]
+        ) !== null;
     }
 };
