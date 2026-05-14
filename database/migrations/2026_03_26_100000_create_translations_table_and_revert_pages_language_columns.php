@@ -24,7 +24,8 @@ return new class extends Migration
             });
         }
 
-        if (! Schema::hasColumn('pages', 'language_id')) {
+        // Avoid Schema::hasColumn on old MySQL/MariaDB (missing generation_expression in information_schema).
+        if (! $this->schemaColumnExists('pages', 'language_id')) {
             return;
         }
 
@@ -98,5 +99,22 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('translations');
+    }
+
+    private function schemaColumnExists(string $table, string $column): bool
+    {
+        $connection = Schema::getConnection();
+
+        if ($connection->getDriverName() !== 'mysql') {
+            return Schema::hasColumn($table, $column);
+        }
+
+        $database = $connection->getDatabaseName();
+        $tableName = $connection->getTablePrefix().$table;
+
+        return DB::selectOne(
+            'select 1 as `exists` from information_schema.columns where table_schema = ? and table_name = ? and column_name = ? limit 1',
+            [$database, $tableName, $column]
+        ) !== null;
     }
 };
