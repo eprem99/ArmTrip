@@ -374,6 +374,8 @@ return [
         'form_slug_hint' => 'Leave empty to auto-generate from name.',
         'form_type' => 'Type',
         'form_description' => 'Description',
+        'form_short_description' => 'Short description',
+        'form_short_description_placeholder' => 'Brief text for hero blocks and cards (plain text)',
         'form_parent' => 'Parent',
         'form_status' => 'Status',
         'form_no_parent' => '— None —',

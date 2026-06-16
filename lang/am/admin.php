@@ -471,6 +471,8 @@ return [
         'form_slug_hint' => 'Դատարկ թողեք՝ անվանումից ստեղծելու համար։',
         'form_type' => 'Տիպ',
         'form_description' => 'Նկարագրություն',
+        'form_short_description' => 'Համառոտ նկարագրություն',
+        'form_short_description_placeholder' => 'Hero-ի և քարտերի համար կարճ տեքստ',
         'form_parent' => 'Ծնող',
         'form_status' => 'Կարգավիճակ',
         'form_no_parent' => '— Չկա —',

@@ -28,6 +28,7 @@ class Term extends Model
         'slug',
         'parent_id',
         'description',
+        'short_description',
         'status',
         'image',
     ];
@@ -110,5 +111,23 @@ class Term extends Model
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_PUBLISHED);
+    }
+
+    public function frontendUrl(): string
+    {
+        $this->loadMissing(['taxonomy', 'parent']);
+
+        if ($this->parent_id && $this->parent) {
+            return route('front.taxonomy.term.nested', [
+                'taxonomySlug' => $this->taxonomy->slug,
+                'parentSlug' => $this->parent->slug,
+                'termSlug' => $this->slug,
+            ]);
+        }
+
+        return route('front.taxonomy.term', [
+            'taxonomySlug' => $this->taxonomy->slug,
+            'termSlug' => $this->slug,
+        ]);
     }
 }

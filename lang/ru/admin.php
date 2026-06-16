@@ -471,6 +471,8 @@ return [
         'form_slug_hint' => 'Пусто — сгенерировать из названия.',
         'form_type' => 'Тип',
         'form_description' => 'Описание',
+        'form_short_description' => 'Краткое описание',
+        'form_short_description_placeholder' => 'Краткий текст для hero и карточек (обычный текст)',
         'form_parent' => 'Родитель',
         'form_status' => 'Статус',
         'form_no_parent' => '— Нет —',

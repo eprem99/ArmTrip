@@ -92,6 +92,21 @@
                     </div>
                 </div>
 
+                <div class="rounded-lg border border-[#c3c4c7] bg-white shadow-sm">
+                    <div class="border-b border-[#c3c4c7] bg-[#f6f7f7] px-4 py-3">
+                        <h3 class="text-sm font-semibold text-slate-800">{{ t('admin.taxonomies.form_short_description') }}</h3>
+                    </div>
+                    <div class="p-4">
+                        <textarea
+                            id="term_short_description"
+                            v-model="form.short_description"
+                            rows="3"
+                            class="block w-full rounded border border-[#8c8f94] px-3 py-2 text-sm focus:border-[#2271b1] focus:ring-1 focus:ring-[#2271b1]"
+                            :placeholder="t('admin.taxonomies.form_short_description_placeholder')"
+                        />
+                    </div>
+                </div>
+
                 <ContentAddMediaButton @click="openMediaPickerForEditor">
                     {{ t('admin.content.add_media') }}
                 </ContentAddMediaButton>
@@ -260,6 +275,7 @@ const form = reactive({
     slug: '',
     status: 'published',
     parent_id: null,
+    short_description: '',
     description: '',
     image: '',
     language_id: null,
@@ -317,7 +333,15 @@ const termsListHref = computed(() =>
 
 const permalinkBase = computed(() => {
     if (typeof window === 'undefined' || !taxonomySlugFromPath) return '';
-    return `${window.location.origin}/${taxonomySlugFromPath}/`;
+    let base = `${window.location.origin}/${taxonomySlugFromPath}/`;
+    if (form.parent_id) {
+        const parent = parentOptions.value.find((p) => p.id === form.parent_id);
+        if (parent?.slug) {
+            base += `${parent.slug}/`;
+        }
+    }
+
+    return base;
 });
 
 const statusDisplayText = computed(() =>
@@ -545,6 +569,7 @@ async function loadTerm() {
         form.slug = data.slug ?? '';
         form.status = data.status === 'draft' ? 'draft' : 'published';
         form.parent_id = data.parent_id ?? null;
+        form.short_description = data.short_description ?? '';
         form.description = data.description ?? '';
         form.image = data.image ?? '';
         termUpdatedAt.value = data.updated_at ?? '';
@@ -582,6 +607,7 @@ async function save() {
             slug: form.slug?.trim() || null,
             status: form.status === 'draft' ? 'draft' : 'published',
             parent_id: form.parent_id || null,
+            short_description: form.short_description?.trim() || null,
             description: form.description || null,
             image: form.image?.trim() || null,
             seo_title: (seoTitle.value || '').trim(),

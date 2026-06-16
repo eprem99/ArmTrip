@@ -66,6 +66,7 @@ class TermsController extends Controller
             'slug' => ['nullable', 'string', 'max:255'],
             'parent_id' => ['nullable', 'integer', 'exists:terms,id'],
             'description' => ['nullable', 'string'],
+            'short_description' => ['nullable', 'string', 'max:2000'],
             'image' => ['nullable', 'string', 'max:65535'],
             'status' => ['nullable', 'string', Rule::in(Term::STATUSES)],
             'seo_title' => ['nullable', 'string', 'max:255'],
@@ -116,6 +117,9 @@ class TermsController extends Controller
                 'slug' => $slug,
                 'parent_id' => $validated['parent_id'] ?? null,
                 'description' => $validated['description'] ?? null,
+                'short_description' => isset($validated['short_description'])
+                    ? (trim((string) ($validated['short_description'] ?? '')) ?: null)
+                    : null,
                 'image' => isset($validated['image']) ? trim((string) $validated['image']) ?: null : null,
                 'status' => $validated['status'] ?? Term::STATUS_PUBLISHED,
             ]);
@@ -144,6 +148,7 @@ class TermsController extends Controller
             'slug' => ['nullable', 'string', 'max:255'],
             'parent_id' => ['nullable', 'integer', 'exists:terms,id'],
             'description' => ['nullable', 'string'],
+            'short_description' => ['nullable', 'string', 'max:2000'],
             'image' => ['nullable', 'string', 'max:65535'],
             'status' => ['nullable', 'string', Rule::in(Term::STATUSES)],
             'seo_title' => ['nullable', 'string', 'max:255'],
@@ -175,6 +180,9 @@ class TermsController extends Controller
             'slug' => $slug,
             'parent_id' => $validated['parent_id'] ?? null,
             'description' => $validated['description'] ?? null,
+            'short_description' => array_key_exists('short_description', $validated)
+                ? (trim((string) ($validated['short_description'] ?? '')) ?: null)
+                : $term->short_description,
             'image' => array_key_exists('image', $validated)
                 ? (trim((string) ($validated['image'] ?? '')) ?: null)
                 : $term->image,

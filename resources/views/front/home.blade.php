@@ -82,28 +82,41 @@
                     </div>
 
                     @php
-                        $destinations = [
-                            ['name' => 'Yerevan', 'desc' => 'The vibrant capital city with stunning views of Mount Ararat and a rich cultural heritage.', 'img' => 'https://c.animaapp.com/mmoxd21v67mhk5/img/ai_2.png', 'alt' => 'Yerevan city skyline with Mount Ararat'],
-                            ['name' => 'Lake Sevan', 'desc' => 'One of the largest freshwater high-altitude lakes in the world, surrounded by breathtaking scenery.', 'img' => 'https://c.animaapp.com/mmoxd21v67mhk5/img/ai_3.png', 'alt' => 'Lake Sevan shoreline panorama'],
-                            ['name' => 'Dilijan', 'desc' => "Armenia's little Switzerland — lush forests, fresh air, and charming architecture.", 'img' => 'https://c.animaapp.com/mmoxd21v67mhk5/img/ai_4.png', 'alt' => 'Dilijan forest trail in Armenia'],
-                            ['name' => 'Garni & Geghard', 'desc' => 'Ancient pagan temple and medieval monastery carved into the rock — a UNESCO World Heritage Site.', 'img' => 'https://c.animaapp.com/mmoxd21v67mhk5/img/ai_6.png', 'alt' => 'Garni Temple in Armenia'],
-                        ];
+                        /** @var \Illuminate\Support\Collection<int, \App\Models\Term> $destinations */
+                        $destinationFallbackImage = 'https://c.animaapp.com/mmoxd21v67mhk5/img/ai_2.png';
                     @endphp
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        @foreach($destinations as $d)
-                            <div class="group rounded-xl overflow-hidden border border-border bg-card">
+                        @forelse($destinations as $destination)
+                            <a
+                                href="{{ $destination->frontendUrl() }}"
+                                class="group rounded-xl overflow-hidden border border-border bg-card"
+                            >
                                 <div class="img-zoom-container h-52 overflow-hidden">
-                                    <img src="{{ $d['img'] }}" alt="{{ $d['alt'] }}" loading="lazy" class="img-zoom w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                    <img
+                                        src="{{ $destination->image ?: $destinationFallbackImage }}"
+                                        alt="{{ $destination->name }}"
+                                        loading="lazy"
+                                        class="img-zoom w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    />
                                 </div>
                                 <div class="p-5">
                                     <h3 class="text-base font-medium text-foreground group-hover:text-primary transition-colors mb-2" style="font-family:'Poppins',sans-serif;">
-                                        {{ $d['name'] }}
+                                        {{ $destination->name }}
                                     </h3>
-                                    <p class="text-muted-foreground text-sm leading-relaxed mb-4">{{ $d['desc'] }}</p>
+                                    @php
+                                        $destinationText = $destination->short_description ?: $destination->description;
+                                    @endphp
+                                    @if($destinationText)
+                                        <p class="text-muted-foreground text-sm leading-relaxed mb-4">{{ strip_tags($destinationText) }}</p>
+                                    @endif
                                     <span class="inline-flex items-center gap-2 text-primary text-sm">Explore →</span>
                                 </div>
-                            </div>
-                        @endforeach
+                            </a>
+                        @empty
+                            <p class="col-span-full text-center text-muted-foreground text-sm py-8">
+                                No destinations yet.
+                            </p>
+                        @endforelse
                     </div>
                 </div>
             </section>

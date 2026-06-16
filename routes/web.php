@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\SubscribersController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Front\AccountController;
 use App\Http\Controllers\Frontend\PostController;
+use App\Http\Controllers\Frontend\TaxonomyController;
 use App\Http\Controllers\Front\PageController;
 use App\Http\Controllers\Front\RentalSeoController;
 use App\Http\Controllers\Front\RentalsListController;
@@ -48,6 +49,17 @@ Route::get('/blog', [PostController::class, 'index'])->name('front.blog.index');
 Route::get('/blog/{slug}', [PostController::class, 'show'])
     ->where('slug', '[A-Za-z0-9\-]+')
     ->name('front.blog.show');
+
+Route::get('/{taxonomySlug}/{parentSlug}/{termSlug}', [TaxonomyController::class, 'showNestedTerm'])
+    ->where('taxonomySlug', '[a-z0-9\-]+(?<!admin)')
+    ->where('parentSlug', '[A-Za-z0-9\-]+')
+    ->where('termSlug', '[A-Za-z0-9\-]+')
+    ->name('front.taxonomy.term.nested');
+
+Route::get('/{taxonomySlug}/{termSlug}', [TaxonomyController::class, 'showTerm'])
+    ->where('taxonomySlug', '[a-z0-9\-]+(?<!admin)')
+    ->where('termSlug', '[A-Za-z0-9\-]+')
+    ->name('front.taxonomy.term');
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [AccountController::class, 'dashboard'])->name('dashboard');
