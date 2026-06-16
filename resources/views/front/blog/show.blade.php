@@ -102,7 +102,7 @@
                         </div>
                     @endif
 
-                    <div class="prose prose-slate max-w-none">
+                    <div class="rich-content max-w-none">
                         {!! $contentHtml !!}
                     </div>
 

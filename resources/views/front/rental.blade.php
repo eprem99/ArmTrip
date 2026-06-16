@@ -13,7 +13,7 @@
         <h1 class="text-3xl font-semibold text-slate-900">{{ $rental->title }}</h1>
         <p class="mt-2 text-slate-600">{{ $rental->location->name }} · {{ $rental->type->name }}</p>
         @if($rental->description)
-            <article class="prose prose-slate mt-6 max-w-none">
+            <article class="rich-content mt-6 max-w-none">
                 {!! nl2br(e($rental->description)) !!}
             </article>
         @endif

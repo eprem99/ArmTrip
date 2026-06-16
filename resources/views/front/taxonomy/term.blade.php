@@ -70,7 +70,7 @@
 
             @if($term->description)
                 <section class="mt-16 max-w-3xl mx-auto border-t border-gray-100 pt-12" aria-label="{{ $term->name }}">
-                    <div class="prose prose-slate max-w-none text-gray-600 leading-relaxed">
+                    <div class="rich-content max-w-none">
                         {!! $term->description !!}
                     </div>
                 </section>
