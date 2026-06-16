@@ -48,6 +48,9 @@ class PageController extends Controller
     }
 
     /**
+     * Published location terms for the current locale.
+     * Prefers child terms (subcategories); falls back to top-level terms.
+     *
      * @return Collection<int, Term>
      */
     private function queryLocationTermsForLcode(string $lcode): Collection
@@ -66,11 +69,23 @@ class PageController extends Controller
             return collect();
         }
 
-        return Term::query()
+        $base = Term::query()
             ->published()
             ->with(['taxonomy:id,slug', 'parent:id,slug'])
             ->whereIn('id', $termIds)
-            ->whereHas('taxonomy', fn ($q) => $q->whereIn('slug', ['location', 'locations']))
+            ->whereHas('taxonomy', fn ($q) => $q->whereIn('slug', ['location', 'locations']));
+
+        $children = (clone $base)
+            ->whereNotNull('parent_id')
+            ->orderBy('name')
+            ->limit(8)
+            ->get();
+
+        if ($children->isNotEmpty()) {
+            return $children;
+        }
+
+        return $base
             ->whereNull('parent_id')
             ->orderBy('name')
             ->limit(8)

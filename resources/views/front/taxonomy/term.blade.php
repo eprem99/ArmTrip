@@ -29,7 +29,7 @@
                     {{ $taxonomy->name }}
                 </span>
                 <h1 class="font-semibold text-4xl md:text-5xl leading-tight mb-4">
-                    {{ $term->name }}
+                    {{ $term->heroHeading() }}
                 </h1>
                 @if($term->short_description)
                     <p class="text-lg text-white/80 leading-relaxed">

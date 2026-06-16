@@ -63,6 +63,7 @@ class TermsController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'hero_title' => ['nullable', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255'],
             'parent_id' => ['nullable', 'integer', 'exists:terms,id'],
             'description' => ['nullable', 'string'],
@@ -114,6 +115,9 @@ class TermsController extends Controller
         $term = DB::transaction(function () use ($taxonomy, $validated, $slug, $groupId, $languageId) {
             $term = $taxonomy->terms()->create([
                 'name' => $validated['name'],
+                'hero_title' => isset($validated['hero_title'])
+                    ? (trim((string) ($validated['hero_title'] ?? '')) ?: null)
+                    : null,
                 'slug' => $slug,
                 'parent_id' => $validated['parent_id'] ?? null,
                 'description' => $validated['description'] ?? null,
@@ -145,6 +149,7 @@ class TermsController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'hero_title' => ['nullable', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255'],
             'parent_id' => ['nullable', 'integer', 'exists:terms,id'],
             'description' => ['nullable', 'string'],
@@ -177,6 +182,9 @@ class TermsController extends Controller
 
         $term->update([
             'name' => $validated['name'],
+            'hero_title' => array_key_exists('hero_title', $validated)
+                ? (trim((string) ($validated['hero_title'] ?? '')) ?: null)
+                : $term->hero_title,
             'slug' => $slug,
             'parent_id' => $validated['parent_id'] ?? null,
             'description' => $validated['description'] ?? null,

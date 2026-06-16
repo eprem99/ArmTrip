@@ -182,6 +182,21 @@
                         </div>
                     </div>
                 </div>
+                <div class="rounded-lg border border-[#c3c4c7] bg-white shadow-sm">
+                    <div class="border-b border-[#c3c4c7] bg-[#f6f7f7] px-4 py-3">
+                        <h3 class="text-sm font-semibold text-slate-800">{{ t('admin.taxonomies.form_hero_title') }}</h3>
+                    </div>
+                    <div class="p-4">
+                        <input
+                            id="term_hero_title"
+                            v-model="form.hero_title"
+                            type="text"
+                            class="block w-full rounded border border-[#8c8f94] px-3 py-2 text-sm focus:border-[#2271b1] focus:ring-1 focus:ring-[#2271b1]"
+                            :placeholder="t('admin.taxonomies.form_hero_title_placeholder')"
+                        />
+                        <p class="mt-1 text-xs text-slate-500">{{ t('admin.taxonomies.form_hero_title_hint') }}</p>
+                    </div>
+                </div>
                 <ContentFeaturedImageCard
                     v-model="form.image"
                     :title="t('admin.taxonomies.form_hero_image')"
@@ -272,6 +287,7 @@ const errors = reactive({ name: '', slug: '' });
 
 const form = reactive({
     name: '',
+    hero_title: '',
     slug: '',
     status: 'published',
     parent_id: null,
@@ -566,6 +582,7 @@ async function loadTerm() {
             `/admin/blog/api/taxonomies/${encodeURIComponent(taxonomySlugFromPath)}/terms/${termIdFromPath}`,
         );
         form.name = data.name ?? '';
+        form.hero_title = data.hero_title ?? '';
         form.slug = data.slug ?? '';
         form.status = data.status === 'draft' ? 'draft' : 'published';
         form.parent_id = data.parent_id ?? null;
@@ -604,6 +621,7 @@ async function save() {
     try {
         const payload = {
             name: form.name.trim(),
+            hero_title: form.hero_title?.trim() || null,
             slug: form.slug?.trim() || null,
             status: form.status === 'draft' ? 'draft' : 'published',
             parent_id: form.parent_id || null,

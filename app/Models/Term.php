@@ -25,6 +25,7 @@ class Term extends Model
     protected $fillable = [
         'taxonomy_id',
         'name',
+        'hero_title',
         'slug',
         'parent_id',
         'description',
@@ -111,6 +112,13 @@ class Term extends Model
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_PUBLISHED);
+    }
+
+    public function heroHeading(): string
+    {
+        $title = trim((string) ($this->hero_title ?? ''));
+
+        return $title !== '' ? $title : (string) $this->name;
     }
 
     public function frontendUrl(): string
