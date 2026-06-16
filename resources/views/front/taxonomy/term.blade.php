@@ -69,8 +69,7 @@
             @endif
 
             @if($term->description)
-                <section class="mt-16 max-w-3xl mx-auto border-t border-gray-100 pt-12" aria-label="About {{ $term->name }}">
-                    <h2 class="text-2xl font-semibold text-gray-900 mb-6">{{ $term->name }}</h2>
+                <section class="mt-16 max-w-3xl mx-auto border-t border-gray-100 pt-12" aria-label="{{ $term->name }}">
                     <div class="prose prose-slate max-w-none text-gray-600 leading-relaxed">
                         {!! $term->description !!}
                     </div>
