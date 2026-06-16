@@ -20,8 +20,12 @@
             />
             <div class="absolute inset-0 bg-linear-to-b from-black/50 via-black/40 to-black/70"></div>
             <div class="relative z-10 text-center text-white px-6 max-w-3xl mx-auto pt-16">
-                <nav class="flex items-center justify-center gap-2 text-sm text-white/70 mb-6" aria-label="Breadcrumb">
+                <nav class="flex flex-wrap items-center justify-center gap-2 text-sm text-white/70 mb-6" aria-label="Breadcrumb">
                     <a href="{{ route('front.home') }}" class="hover:text-white transition-colors">Home</a>
+                    @if($term->parent)
+                        <span>/</span>
+                        <a href="{{ $term->parent->frontendUrl() }}" class="hover:text-white transition-colors">{{ $term->parent->name }}</a>
+                    @endif
                     <span>/</span>
                     <span class="text-white">{{ $term->name }}</span>
                 </nav>
@@ -69,7 +73,7 @@
             @endif
 
             @if($term->description)
-                <section class="mt-16 max-w-3xl mx-auto border-t border-gray-100 pt-12" aria-label="{{ $term->name }}">
+                <section class="mt-16 max-w-7xl mx-auto border-t border-gray-100 pt-12" aria-label="{{ $term->name }}">
                     <div class="rich-content max-w-none">
                         {!! $term->description !!}
                     </div>
