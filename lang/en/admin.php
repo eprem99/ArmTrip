@@ -323,6 +323,8 @@ return [
         'seo_title' => 'SEO',
         'seo_meta_title' => 'Meta title',
         'seo_meta_description' => 'Meta description',
+        'taxonomies_loading' => 'Loading taxonomies…',
+        'taxonomies_empty' => 'No terms yet. Add them under Blog → taxonomy.',
     ],
     'taxonomies' => [
         'title' => 'Taxonomies',

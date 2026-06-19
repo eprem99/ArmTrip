@@ -220,6 +220,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/blog/api/posts', [BlogPostsController::class, 'index'])->name('blog.api.posts');
     Route::get('/blog/api/posts/check-slug', [BlogPostsController::class, 'checkSlug'])->name('blog.api.posts.checkSlug');
     Route::get('/blog/api/posts/suggest-slug', [BlogPostsController::class, 'suggestSlug'])->name('blog.api.posts.suggestSlug');
+    Route::get('/blog/api/posts/taxonomy-terms', [BlogPostsController::class, 'taxonomyTerms'])->name('blog.api.posts.taxonomyTerms');
     Route::post('/blog/api/posts', [BlogPostsController::class, 'store'])->name('blog.api.posts.store');
     Route::get('/blog/api/posts/{post}', [BlogPostsController::class, 'show'])->name('blog.api.posts.show')->whereNumber('post');
     Route::put('/blog/api/posts/{post}', [BlogPostsController::class, 'update'])->name('blog.api.posts.update')->whereNumber('post');

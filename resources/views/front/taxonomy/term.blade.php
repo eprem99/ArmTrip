@@ -8,7 +8,7 @@
 
 @extends('front.layouts.app')
 
-@section('title', $term->name.' — '.config('app.name'))
+@section('title', $term->heroHeading().' — '.config('app.name'))
 
 @section('content')
         {{-- Hero --}}

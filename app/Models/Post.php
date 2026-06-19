@@ -29,6 +29,8 @@ class Post extends Model
     protected static function booted(): void
     {
         static::deleting(function (Post $post) {
+            $post->terms()->detach();
+
             Translation::query()
                 ->where('type', Translation::TYPE_POST)
                 ->where('content_id', $post->id)

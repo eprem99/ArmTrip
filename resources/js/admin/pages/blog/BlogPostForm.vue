@@ -176,6 +176,14 @@
                     </div>
                 </div>
 
+                <PostTaxonomyPicker
+                    v-model="selectedTermIds"
+                    :taxonomies="taxonomyOptions"
+                    :loading="taxonomiesLoading"
+                    :loading-label="t('admin.blog_posts.taxonomies_loading')"
+                    :empty-label="t('admin.blog_posts.taxonomies_empty')"
+                />
+
             </aside>
         </form>
 
@@ -201,6 +209,7 @@ import ContentTitlePermalinkCard from '../../components/content/ContentTitlePerm
 import ContentExcerptCard from '../../components/content/ContentExcerptCard.vue';
 import ContentPublishCard from '../../components/content/ContentPublishCard.vue';
 import ContentFeaturedImageCard from '../../components/content/ContentFeaturedImageCard.vue';
+import PostTaxonomyPicker from '../../components/blog/PostTaxonomyPicker.vue';
 
 const { t, locale } = useI18n();
 
@@ -267,6 +276,10 @@ const tinymceFilePicker = ref(null); // (url, meta) => void
 
 const seoTitle = ref('');
 const seoDescription = ref('');
+
+const taxonomyOptions = ref([]);
+const taxonomiesLoading = ref(false);
+const selectedTermIds = ref([]);
 
 const permalinkBase = computed(() => {
     if (typeof window === 'undefined') return '';
@@ -474,6 +487,7 @@ async function loadPost() {
                 form.published_at = `${publishDate.value} ${publishTime.value}:00`;
             }
         }
+        selectedTermIds.value = Array.isArray(data.term_ids) ? [...data.term_ids] : [];
     } catch (e) {
         saveError.value = e.response?.data?.message || t('admin.blog_posts.save_error');
     } finally {
@@ -487,6 +501,51 @@ function mapLocaleToLcode(loc) {
     if (loc === 'am') return 'am';
     return 'en';
 }
+
+function lcodeForTaxonomies() {
+    if (isEdit && postLoaded.value?.language?.lcode) {
+        return postLoaded.value.language.lcode;
+    }
+    const lang = activeLanguages.value.find((l) => l.id === form.language_id);
+    if (lang?.lcode) return lang.lcode;
+    return mapLocaleToLcode(typeof window !== 'undefined' ? window.__locale : 'en');
+}
+
+function pruneSelectedTermIds() {
+    const valid = new Set();
+    for (const tax of taxonomyOptions.value) {
+        for (const term of tax.terms || []) {
+            valid.add(term.id);
+        }
+    }
+    selectedTermIds.value = selectedTermIds.value.filter((id) => valid.has(id));
+}
+
+async function loadTaxonomyOptions() {
+    taxonomiesLoading.value = true;
+    setCsrf();
+    try {
+        const { data } = await axios.get('/admin/blog/api/posts/taxonomy-terms', {
+            params: { lang: lcodeForTaxonomies() },
+            headers: { Accept: 'application/json' },
+        });
+        taxonomyOptions.value = Array.isArray(data) ? data : [];
+        pruneSelectedTermIds();
+    } catch (_) {
+        taxonomyOptions.value = [];
+        selectedTermIds.value = [];
+    } finally {
+        taxonomiesLoading.value = false;
+    }
+}
+
+watch(
+    () => form.language_id,
+    () => {
+        if (isEdit || languageLocked.value) return;
+        loadTaxonomyOptions();
+    },
+);
 
 function applyCreateLanguageFromQuery() {
     if (isEdit || !activeLanguages.value.length) return;
@@ -533,6 +592,8 @@ async function save() {
         }
     }
 
+    payload.term_ids = [...selectedTermIds.value];
+
     try {
         if (isEdit) {
             await axios.put(`/admin/blog/api/posts/${editId}`, payload);
@@ -562,8 +623,10 @@ async function boot() {
     }
     if (isEdit) {
         await loadPost();
+        await loadTaxonomyOptions();
     } else {
         applyCreateLanguageFromQuery();
+        await loadTaxonomyOptions();
         loading.value = false;
     }
 }

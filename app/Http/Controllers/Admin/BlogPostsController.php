@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Language;
 use App\Models\Post;
+use App\Models\Taxonomy;
+use App\Models\Term;
 use App\Models\Translation;
 use App\Support\SlugGenerator;
 use Illuminate\Http\JsonResponse;
@@ -94,6 +96,71 @@ class BlogPostsController extends Controller
     }
 
     /**
+     * All taxonomies with terms for the post editor (filtered by language).
+     */
+    public function taxonomyTerms(Request $request): JsonResponse
+    {
+        $lcode = (string) $request->get('lang', 'en');
+        $lang = Language::query()->where('lcode', $lcode)->first()
+            ?? Language::query()->orderBy('id')->firstOrFail();
+
+        $taxonomyIds = Translation::query()
+            ->where('type', Translation::TYPE_TAXONOMY)
+            ->where('language_id', $lang->id)
+            ->pluck('content_id');
+
+        if ($taxonomyIds->isEmpty()) {
+            return response()->json([]);
+        }
+
+        $taxonomies = Taxonomy::query()
+            ->whereIn('id', $taxonomyIds)
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug', 'type', 'icon']);
+
+        $termIdsForLang = Translation::query()
+            ->where('type', Translation::TYPE_TERM)
+            ->where('language_id', $lang->id)
+            ->pluck('content_id');
+
+        $termsByTaxonomy = collect();
+        if ($termIdsForLang->isNotEmpty()) {
+            $termsByTaxonomy = Term::query()
+                ->whereIn('id', $termIdsForLang)
+                ->whereIn('taxonomy_id', $taxonomyIds)
+                ->with(['parent:id,name,slug'])
+                ->orderBy('name')
+                ->get(['id', 'taxonomy_id', 'name', 'slug', 'parent_id'])
+                ->groupBy('taxonomy_id');
+        }
+
+        $result = $taxonomies->map(function (Taxonomy $taxonomy) use ($termsByTaxonomy) {
+            $terms = $termsByTaxonomy->get($taxonomy->id, collect())->values();
+
+            return [
+                'id' => $taxonomy->id,
+                'name' => $taxonomy->name,
+                'slug' => $taxonomy->slug,
+                'type' => $taxonomy->type,
+                'icon' => $taxonomy->icon,
+                'terms' => $terms->map(fn (Term $term) => [
+                    'id' => $term->id,
+                    'name' => $term->name,
+                    'slug' => $term->slug,
+                    'parent_id' => $term->parent_id,
+                    'parent' => $term->parent ? [
+                        'id' => $term->parent->id,
+                        'name' => $term->parent->name,
+                        'slug' => $term->parent->slug,
+                    ] : null,
+                ])->all(),
+            ];
+        })->values();
+
+        return response()->json($result);
+    }
+
+    /**
      * Grouped posts for the current UI language (same shape as pages list).
      */
     public function index(Request $request): JsonResponse
@@ -158,13 +225,14 @@ class BlogPostsController extends Controller
 
     public function show(Post $post): JsonResponse
     {
-        $post->load(['translation.language']);
+        $post->load(['translation.language', 'terms.taxonomy']);
 
         $payload = $post->toArray();
         $t = $post->translation;
         $payload['language_id'] = $t?->language_id;
         $payload['translation_group_id'] = $t?->translation_group_id;
         $payload['language'] = $t?->language;
+        $payload['term_ids'] = $post->terms->pluck('id')->values()->all();
 
         return response()->json($payload);
     }
@@ -181,9 +249,13 @@ class BlogPostsController extends Controller
             'published_at' => ['nullable', 'date'],
             'language_id' => ['required', 'integer', 'exists:languages,id'],
             'translation_group_id' => ['nullable', 'uuid'],
+            'term_ids' => ['nullable', 'array'],
+            'term_ids.*' => ['integer', 'exists:terms,id'],
         ]);
 
         $languageId = (int) $validated['language_id'];
+        $termIds = $validated['term_ids'] ?? [];
+        unset($validated['term_ids']);
         $groupId = isset($validated['translation_group_id'])
             ? trim((string) $validated['translation_group_id'])
             : '';
@@ -203,7 +275,7 @@ class BlogPostsController extends Controller
 
         unset($validated['language_id'], $validated['translation_group_id']);
 
-        $post = DB::transaction(function () use ($validated, $groupId, $languageId) {
+        $post = DB::transaction(function () use ($validated, $groupId, $languageId, $termIds) {
             $slug = SlugGenerator::uniquePostSlug(
                 $validated['title'],
                 $validated['slug'] ?? '',
@@ -234,16 +306,19 @@ class BlogPostsController extends Controller
                 'type' => Translation::TYPE_POST,
             ]);
 
+            $this->syncPostTerms($post, $termIds, $languageId);
+
             return $post;
         });
 
-        $post->load(['translation.language']);
+        $post->load(['translation.language', 'terms']);
 
         $payload = $post->toArray();
         $t = $post->translation;
         $payload['language_id'] = $t?->language_id;
         $payload['translation_group_id'] = $t?->translation_group_id;
         $payload['language'] = $t?->language;
+        $payload['term_ids'] = $post->terms->pluck('id')->values()->all();
 
         return response()->json($payload, 201);
     }
@@ -263,7 +338,12 @@ class BlogPostsController extends Controller
             'featured_image' => ['nullable', 'string', 'max:2048'],
             'status' => ['required', Rule::in(['draft', 'published'])],
             'published_at' => ['nullable', 'date'],
+            'term_ids' => ['nullable', 'array'],
+            'term_ids.*' => ['integer', 'exists:terms,id'],
         ]);
+
+        $termIds = $validated['term_ids'] ?? [];
+        unset($validated['term_ids']);
 
         $slug = SlugGenerator::uniquePostSlug(
             $validated['title'],
@@ -291,13 +371,17 @@ class BlogPostsController extends Controller
         ]);
         $post->save();
 
-        $post->load(['translation.language']);
+        $post->load('translation');
+        $this->syncPostTerms($post, $termIds, $post->translation?->language_id);
+
+        $post->load(['translation.language', 'terms']);
 
         $payload = $post->toArray();
         $t = $post->translation;
         $payload['language_id'] = $t?->language_id;
         $payload['translation_group_id'] = $t?->translation_group_id;
         $payload['language'] = $t?->language;
+        $payload['term_ids'] = $post->terms->pluck('id')->values()->all();
 
         return response()->json($payload);
     }
@@ -307,5 +391,27 @@ class BlogPostsController extends Controller
         $post->delete();
 
         return response()->json(['message' => 'deleted']);
+    }
+
+    /**
+     * @param  list<int>  $termIds
+     */
+    private function syncPostTerms(Post $post, array $termIds, ?int $languageId = null): void
+    {
+        $termIds = array_values(array_unique(array_map('intval', $termIds)));
+
+        if ($languageId !== null && $termIds !== []) {
+            $validIds = Translation::query()
+                ->where('type', Translation::TYPE_TERM)
+                ->where('language_id', $languageId)
+                ->whereIn('content_id', $termIds)
+                ->pluck('content_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $termIds = array_values(array_intersect($termIds, $validIds));
+        }
+
+        $post->terms()->sync($termIds);
     }
 }

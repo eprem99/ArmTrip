@@ -94,6 +94,22 @@
 
                 <div class="rounded-lg border border-[#c3c4c7] bg-white shadow-sm">
                     <div class="border-b border-[#c3c4c7] bg-[#f6f7f7] px-4 py-3">
+                        <h3 class="text-sm font-semibold text-slate-800">{{ t('admin.taxonomies.form_hero_title') }}</h3>
+                    </div>
+                    <div class="p-4">
+                        <input
+                            id="term_hero_title"
+                            v-model="form.hero_title"
+                            type="text"
+                            class="block w-full rounded border border-[#8c8f94] px-3 py-2 text-sm focus:border-[#2271b1] focus:ring-1 focus:ring-[#2271b1]"
+                            :placeholder="t('admin.taxonomies.form_hero_title_placeholder')"
+                        />
+                        <p class="mt-1 text-xs text-slate-500">{{ t('admin.taxonomies.form_hero_title_hint') }}</p>
+                    </div>
+                </div>
+
+                <div class="rounded-lg border border-[#c3c4c7] bg-white shadow-sm">
+                    <div class="border-b border-[#c3c4c7] bg-[#f6f7f7] px-4 py-3">
                         <h3 class="text-sm font-semibold text-slate-800">{{ t('admin.taxonomies.form_short_description') }}</h3>
                     </div>
                     <div class="p-4">
@@ -180,21 +196,6 @@
                                 {{ termLanguageLabel }}
                             </p>
                         </div>
-                    </div>
-                </div>
-                <div class="rounded-lg border border-[#c3c4c7] bg-white shadow-sm">
-                    <div class="border-b border-[#c3c4c7] bg-[#f6f7f7] px-4 py-3">
-                        <h3 class="text-sm font-semibold text-slate-800">{{ t('admin.taxonomies.form_hero_title') }}</h3>
-                    </div>
-                    <div class="p-4">
-                        <input
-                            id="term_hero_title"
-                            v-model="form.hero_title"
-                            type="text"
-                            class="block w-full rounded border border-[#8c8f94] px-3 py-2 text-sm focus:border-[#2271b1] focus:ring-1 focus:ring-[#2271b1]"
-                            :placeholder="t('admin.taxonomies.form_hero_title_placeholder')"
-                        />
-                        <p class="mt-1 text-xs text-slate-500">{{ t('admin.taxonomies.form_hero_title_hint') }}</p>
                     </div>
                 </div>
                 <ContentFeaturedImageCard

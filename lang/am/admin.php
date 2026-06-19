@@ -420,6 +420,8 @@ return [
         'col_created_at' => 'Ստեղծվել է',
         'status_draft' => 'Սևագիր',
         'status_published' => 'Հրապարակված',
+        'taxonomies_loading' => 'Տաքսոնոմիաները բեռնվում են…',
+        'taxonomies_empty' => 'Տերմիններ դեռ չկան։ Ավելացրեք Բլոգ → տաքսոնոմիա։',
     ],
     'taxonomies' => [
         'title' => 'Տաքսոնոմիաներ',

@@ -101,7 +101,7 @@
                                 </div>
                                 <div class="p-5">
                                     <h3 class="text-base font-medium text-foreground group-hover:text-primary transition-colors mb-2" style="font-family:'Poppins',sans-serif;">
-                                        {{ $destination->name }}
+                                        {{ $destination->heroHeading() }}
                                     </h3>
                                     @php
                                         $destinationText = $destination->short_description ?: $destination->description;

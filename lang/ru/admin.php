@@ -420,6 +420,8 @@ return [
         'col_created_at' => 'Создан',
         'status_draft' => 'Черновик',
         'status_published' => 'Опубликовано',
+        'taxonomies_loading' => 'Загрузка таксономий…',
+        'taxonomies_empty' => 'Терминов пока нет. Добавьте их в Блог → таксономия.',
     ],
     'taxonomies' => [
         'title' => 'Таксономии',
